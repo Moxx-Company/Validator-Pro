@@ -62,12 +62,13 @@ class StartHandler:
 
 {WELCOME_MESSAGE}
 
-🎁 **Special Onboarding Offer:**
-• Get 10 FREE email validations to try our service
+🎁 **Free Trial:**
+• Get 20,000 FREE validations (emails + phones combined)
 • No credit card required
-• See the quality of our validation
+• Test both email and phone validation features
+• See the quality of our professional validation
 
-Ready to validate your first emails?
+Ready to start validating?
         """
         
         if update.message:
@@ -96,8 +97,8 @@ Ready to validate your first emails?
                 days_remaining = active_sub.days_remaining()
                 subscription_status = f"💎 **Active Subscription** ({days_remaining} days remaining)"
             else:
-                trial_remaining = 50 - user.trial_emails_used
-                subscription_status = f"🆓 **Trial:** {trial_remaining} validations remaining"
+                trial_remaining = 20000 - user.trial_validations_used
+                subscription_status = f"🆓 **Trial:** {trial_remaining} validations remaining (emails + phones)"
             
             menu_text = f"""
 🎯 **Email Validator Pro**

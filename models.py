@@ -38,6 +38,13 @@ class User(Base):
             return f"{self.first_name} {self.last_name}"
         return self.first_name or self.username or f"User_{self.telegram_id}"
     
+    @property
+    def trial_validations_used(self):
+        """Total trial validations used (emails + phones combined)"""
+        emails_used = self.trial_emails_used or 0
+        phones_used = self.trial_phones_used or 0
+        return emails_used + phones_used
+    
     def has_active_subscription(self):
         """Check if user has an active subscription"""
         return any(sub.is_active() for sub in self.subscriptions)

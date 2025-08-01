@@ -147,10 +147,11 @@ What would you like to explore?
             days_remaining = active_sub.days_remaining()
             subscription_info = f"✅ Active ({days_remaining} days remaining)"
         else:
-            trial_remaining = user.get_trial_remaining()
             emails_used = user.trial_emails_used or 0
             phones_used = user.trial_phones_used or 0
-            subscription_info = f"🆓 Trial ({trial_remaining} validations remaining)\n    📧 Emails used: {emails_used}\n    📱 Phones used: {phones_used}"
+            total_used = emails_used + phones_used
+            trial_remaining = 20000 - total_used
+            subscription_info = f"🆓 Trial ({trial_remaining} validations remaining)\n    📧 Emails used: {emails_used:,}\n    📱 Phones used: {phones_used:,}"
         
         # Monthly statistics
         month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
