@@ -182,3 +182,192 @@ When you're done, type /validate to start the validation process.
             reply_markup=self.keyboards.back_to_menu(),
             parse_mode='Markdown'
         )
+    
+    async def handle_file_upload(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle file upload for email validation"""
+        document = update.message.document
+        telegram_user = update.effective_user
+        
+        with SessionLocal() as db:
+            user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
+            
+            if not user:
+                await update.message.reply_text(
+                    "❌ User not found. Please start with /start",
+                    reply_markup=self.keyboards.main_menu()
+                )
+                return
+            
+            # Check file size
+            if document.file_size > MAX_FILE_SIZE_MB * 1024 * 1024:
+                await update.message.reply_text(
+                    f"❌ File too large. Maximum size is {MAX_FILE_SIZE_MB}MB",
+                    reply_markup=self.keyboards.main_menu()
+                )
+                return
+            
+            # Check file type
+            allowed_types = ['text/plain', 'text/csv', 'application/vnd.ms-excel', 
+                           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+            
+            if document.mime_type not in allowed_types:
+                await update.message.reply_text(
+                    "❌ Unsupported file type. Please upload CSV, Excel, or TXT files only.",
+                    reply_markup=self.keyboards.main_menu()
+                )
+                return
+            
+            # Show processing message
+            processing_msg = await update.message.reply_text(
+                "📁 Processing your file...",
+                reply_markup=self.keyboards.main_menu()
+            )
+            
+            try:
+                # Download file
+                file = await context.bot.get_file(document.file_id)
+                file_path = f"/tmp/{document.file_name}"
+                await file.download_to_drive(file_path)
+                
+                # Process file
+                emails = self.file_processor.process_file(file_path)
+                
+                if not emails:
+                    await processing_msg.edit_text(
+                        "❌ No valid emails found in the file.",
+                        reply_markup=self.keyboards.main_menu()
+                    )
+                    return
+                
+                # Check if user has enough credits
+                if not user.has_active_subscription():
+                    remaining = 50 - user.trial_emails_used
+                    if len(emails) > remaining:
+                        await processing_msg.edit_text(
+                            f"❌ File contains {len(emails)} emails, but you only have {remaining} trial validations remaining.\n\n"
+                            "Please subscribe for unlimited access or upload a smaller file.",
+                            reply_markup=self.keyboards.subscription_prompt()
+                        )
+                        return
+                
+                # Start validation
+                await self.process_email_validation(processing_msg, user, emails, db, document.file_name)
+                
+                # Clean up file
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    
+            except Exception as e:
+                logger.error(f"Error processing file upload: {e}")
+                await processing_msg.edit_text(
+                    "❌ Error processing file. Please check the format and try again.",
+                    reply_markup=self.keyboards.main_menu()
+                )
+    
+    async def process_email_validation(self, message, user: User, emails: list, db: Session, filename: str = None):
+        """Process email validation and update progress"""
+        try:
+            # Create validation job
+            job = ValidationJob(
+                user_id=user.id,
+                total_emails=len(emails),
+                filename=filename or "Manual Input",
+                status="processing"
+            )
+            db.add(job)
+            db.commit()
+            db.refresh(job)
+            
+            # Update message
+            await message.edit_text(
+                f"🔄 Validating {len(emails)} emails...\n"
+                f"Progress: 0/{len(emails)} (0%)",
+                reply_markup=None
+            )
+            
+            # Process emails in batches
+            batch_size = 10
+            validated_count = 0
+            
+            for i in range(0, len(emails), batch_size):
+                batch = emails[i:i + batch_size]
+                
+                # Validate batch concurrently
+                tasks = [self.email_validator.validate_email(email) for email in batch]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Save results
+                for email, result in zip(batch, results):
+                    if not isinstance(result, Exception):
+                        validation_result = ValidationResult(
+                            job_id=job.id,
+                            email=email,
+                            is_valid=result.get('is_valid', False),
+                            reason=result.get('reason', 'Unknown error'),
+                            mx_record=result.get('mx_record'),
+                            smtp_check=result.get('smtp_check', False)
+                        )
+                        db.add(validation_result)
+                    
+                    validated_count += 1
+                
+                db.commit()
+                
+                # Update progress every batch
+                progress = (validated_count / len(emails)) * 100
+                progress_bar = create_progress_bar(progress)
+                
+                try:
+                    await message.edit_text(
+                        f"🔄 Validating emails...\n"
+                        f"Progress: {validated_count}/{len(emails)} ({progress:.1f}%)\n"
+                        f"{progress_bar}",
+                        reply_markup=None
+                    )
+                except:
+                    pass  # Ignore rate limit errors
+            
+            # Update job status
+            job.status = "completed"
+            job.completed_at = datetime.utcnow()
+            
+            # Update user usage
+            if not user.has_active_subscription():
+                user.trial_emails_used += len(emails)
+            
+            db.commit()
+            
+            # Get results summary
+            results = db.query(ValidationResult).filter(ValidationResult.job_id == job.id).all()
+            valid_count = sum(1 for r in results if r.is_valid)
+            invalid_count = len(results) - valid_count
+            
+            # Final message
+            final_text = f"""
+✅ **Validation Complete!**
+
+📊 **Results Summary:**
+• Total emails: {len(emails)}
+• Valid: {valid_count}
+• Invalid: {invalid_count}
+• Accuracy: {(valid_count/len(emails)*100):.1f}%
+
+📁 **File:** {filename or 'Manual Input'}
+⏱️ **Completed:** {datetime.now().strftime('%H:%M')}
+            """
+            
+            await message.edit_text(
+                final_text,
+                reply_markup=self.keyboards.validation_results(job.id),
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in email validation process: {e}")
+            job.status = "failed"
+            db.commit()
+            
+            await message.edit_text(
+                "❌ Validation failed. Please try again or contact support.",
+                reply_markup=self.keyboards.main_menu()
+            )
