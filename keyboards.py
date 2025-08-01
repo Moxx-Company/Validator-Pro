@@ -172,3 +172,12 @@ class Keyboards:
         ])
         
         return InlineKeyboardMarkup(keyboard)
+    
+    @staticmethod
+    def email_input_menu():
+        """Menu for email input mode"""
+        keyboard = [
+            [InlineKeyboardButton("✅ Start Validation", callback_data="start_validation")],
+            [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
+        ]
+        return InlineKeyboardMarkup(keyboard)

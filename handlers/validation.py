@@ -59,6 +59,9 @@ class ValidationHandler:
             elif data.startswith('details_'):
                 job_id = data.split('_')[1]
                 await self.show_job_details(update, context, user, job_id, db)
+            
+            elif data == 'start_validation':
+                await self.start_validation_from_input(update, context)
     
     async def show_validation_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User):
         """Show email validation options"""
@@ -162,6 +165,7 @@ Just drag and drop your file or click the attachment button and send it to me.
     async def start_email_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Start manual email input process"""
         context.user_data['waiting_for_emails'] = True
+        context.user_data['collected_emails'] = []
         
         input_text = """
 ✍️ **Enter Email Addresses**
@@ -177,15 +181,108 @@ john@example.com
 jane@test.com
 support@company.org
 
-When you're done, type /validate to start the validation process.
+When you're done, click "Start Validation" below or type /done.
         """
         
         query = update.callback_query
         await query.edit_message_text(
             input_text,
-            reply_markup=self.keyboards.back_to_menu(),
+            reply_markup=self.keyboards.email_input_menu(),
             parse_mode='Markdown'
         )
+    
+    async def handle_email_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle email input from user"""
+        text = update.message.text.strip()
+        
+        # Check for done command
+        if text.lower() == '/done':
+            await self.start_validation_from_input(update, context)
+            return
+        
+        # Extract emails from text
+        import re
+        email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+        found_emails = re.findall(email_pattern, text)
+        
+        if not found_emails:
+            await update.message.reply_text(
+                "❌ No valid email addresses found. Please enter valid emails or click 'Start Validation' when done.",
+                reply_markup=self.keyboards.email_input_menu()
+            )
+            return
+        
+        # Add to collected emails
+        if 'collected_emails' not in context.user_data:
+            context.user_data['collected_emails'] = []
+        
+        context.user_data['collected_emails'].extend(found_emails)
+        
+        # Remove duplicates
+        unique_emails = list(dict.fromkeys(context.user_data['collected_emails']))
+        context.user_data['collected_emails'] = unique_emails
+        
+        await update.message.reply_text(
+            f"✅ Added {len(found_emails)} email(s). Total collected: {len(unique_emails)}\n\n"
+            "Send more emails or click 'Start Validation' below.",
+            reply_markup=self.keyboards.email_input_menu()
+        )
+    
+    async def start_validation_from_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start validation from manually entered emails"""
+        emails = context.user_data.get('collected_emails', [])
+        
+        if not emails:
+            if update.callback_query:
+                await update.callback_query.edit_message_text(
+                    "❌ No emails entered. Please enter some emails first.",
+                    reply_markup=self.keyboards.email_input_menu()
+                )
+            else:
+                await update.message.reply_text(
+                    "❌ No emails entered. Please enter some emails first.",
+                    reply_markup=self.keyboards.email_input_menu()
+                )
+            return
+        
+        # Clear input state
+        context.user_data['waiting_for_emails'] = False
+        context.user_data['collected_emails'] = []
+        
+        # Get user
+        telegram_user = update.effective_user
+        with SessionLocal() as db:
+            user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
+            
+            if not user:
+                message = "❌ User not found. Please start with /start"
+                if update.callback_query:
+                    await update.callback_query.edit_message_text(message, reply_markup=self.keyboards.main_menu())
+                else:
+                    await update.message.reply_text(message, reply_markup=self.keyboards.main_menu())
+                return
+            
+            # Check credits
+            if not user.has_active_subscription():
+                from config import TRIAL_EMAIL_LIMIT
+                remaining = TRIAL_EMAIL_LIMIT - user.trial_emails_used
+                if len(emails) > remaining:
+                    message = (f"❌ You entered {len(emails)} emails, but only have {remaining} trial validations remaining.\n\n"
+                              "Please subscribe for unlimited access.")
+                    if update.callback_query:
+                        await update.callback_query.edit_message_text(message, reply_markup=self.keyboards.subscription_prompt())
+                    else:
+                        await update.message.reply_text(message, reply_markup=self.keyboards.subscription_prompt())
+                    return
+            
+            # Start validation
+            message_text = f"🔄 Starting validation of {len(emails)} emails..."
+            if update.callback_query:
+                message = await update.callback_query.edit_message_text(message_text)
+            else:
+                message = await update.message.reply_text(message_text)
+            
+            await self.process_email_validation(message, user, emails, db, "Manual Input")
     
     async def handle_file_upload(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle file upload for email validation"""

@@ -166,7 +166,7 @@ class EmailValidatorBot:
         else:
             # Default response
             await update.message.reply_text(
-                "Please use the menu buttons to navigate.",
+                "❌ Unknown command. Please use the menu buttons.",
                 reply_markup=self.keyboards.main_menu()
             )
     
