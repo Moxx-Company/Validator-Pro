@@ -4,6 +4,9 @@ Email validation handler
 import os
 import logging
 import asyncio
+import json
+import time
+import concurrent.futures
 from datetime import datetime
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -11,7 +14,7 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import User, ValidationJob, ValidationResult
 from keyboards import Keyboards
-from email_validator import EmailValidator
+from email_validator import EmailValidator, ValidationResult as EmailValidationResult
 from file_processor import FileProcessor
 from utils import create_progress_bar, format_duration, format_file_size
 from config import MAX_FILE_SIZE_MB
@@ -292,59 +295,96 @@ When you're done, type /validate to start the validation process.
                 reply_markup=None
             )
             
-            # Process emails in optimized batches for speed + reliability
-            batch_size = 40  # Optimized batch size for maximum throughput
+            # Process emails in stable batches
+            batch_size = 25  # Balanced for stability and speed
             validated_count = 0
+            start_time = time.time()
             
             for i in range(0, len(emails), batch_size):
                 batch = emails[i:i + batch_size]
                 
-                # Validate batch concurrently with timeout
+                # Validate batch with proper executor handling
+                batch_results = []
                 try:
-                    tasks = [self.email_validator.validate_email(email) for email in batch]
-                    results = await asyncio.wait_for(
-                        asyncio.gather(*tasks, return_exceptions=True),
-                        timeout=30.0  # 30 second timeout to prevent hanging
-                    )
+                    # Use thread pool for CPU-bound validation tasks
+                    loop = asyncio.get_running_loop()
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                        # Create futures for batch
+                        futures = []
+                        for email in batch:
+                            future = loop.run_in_executor(executor, validator.validate_single_email, email)
+                            futures.append(future)
+                        
+                        # Wait with timeout
+                        batch_results = await asyncio.wait_for(
+                            asyncio.gather(*futures, return_exceptions=True),
+                            timeout=15.0  # 15 second timeout per batch
+                        )
                 except asyncio.TimeoutError:
                     logger.warning(f"Batch timeout at {validated_count}/{len(emails)}")
-                    # Handle timeout by marking all emails in batch as failed
-                    results = [{'is_valid': False, 'reason': 'Validation timeout', 'mx_record': None, 'smtp_check': False} for _ in batch]
+                    # Create timeout results for remaining emails
+                    for email in batch[len(batch_results):]:
+                        batch_results.append(EmailValidationResult(
+                            email=email,
+                            is_valid=False,
+                            syntax_valid=False,
+                            domain_exists=False,
+                            mx_record_exists=False,
+                            smtp_connectable=False,
+                            domain="",
+                            mx_records=[],
+                            error_message="Validation timeout",
+                            validation_time=0
+                        ))
                 except Exception as batch_error:
-                    logger.error(f"Batch error at {validated_count}/{len(emails)}: {batch_error}")
-                    # Handle other errors by marking all emails in batch as failed
-                    results = [{'is_valid': False, 'reason': f'Batch error: {str(batch_error)}', 'mx_record': None, 'smtp_check': False} for _ in batch]
+                    logger.error(f"Batch error: {batch_error}")
+                    # Create error results for all emails in batch
+                    batch_results = []
+                    for email in batch:
+                        batch_results.append(EmailValidationResult(
+                            email=email,
+                            is_valid=False,
+                            syntax_valid=False,
+                            domain_exists=False,
+                            mx_record_exists=False,
+                            smtp_connectable=False,
+                            domain="",
+                            mx_records=[],
+                            error_message=f"Batch error: {str(batch_error)}",
+                            validation_time=0
+                        ))
                 
-                # Save results
-                for email, result in zip(batch, results):
+                # Save results from batch
+                for result in batch_results:
                     try:
-                        if not isinstance(result, Exception):
-                            # Convert mx_record to JSON string if it's a list
-                            mx_records_str = None
-                            if result.get('mx_record'):
-                                if isinstance(result.get('mx_record'), list):
-                                    mx_records_str = result.get('mx_record')[0] if result.get('mx_record') else None
-                                else:
-                                    mx_records_str = result.get('mx_record')
-                            
+                        if isinstance(result, EmailValidationResult):
+                            # Save successful validation result
                             validation_result = ValidationResult(
                                 job_id=job.id,
-                                email=email,
-                                is_valid=result.get('is_valid', False),
-                                error_message=result.get('reason', 'Unknown error'),
-                                mx_records=mx_records_str,
-                                smtp_connectable=result.get('smtp_check', False)
+                                email=result.email,
+                                is_valid=result.is_valid,
+                                syntax_valid=result.syntax_valid,
+                                domain_exists=result.domain_exists,
+                                mx_record_exists=result.mx_record_exists,
+                                smtp_connectable=result.smtp_connectable,
+                                error_message=result.error_message,
+                                mx_records=json.dumps(result.mx_records) if result.mx_records else None
                             )
                             db.add(validation_result)
-                        else:
-                            # Handle exception results
+                        elif isinstance(result, Exception):
+                            # Handle exception - find corresponding email
+                            idx = batch_results.index(result)
+                            email = batch[idx] if idx < len(batch) else "unknown"
                             validation_result = ValidationResult(
                                 job_id=job.id,
                                 email=email,
                                 is_valid=False,
+                                syntax_valid=False,
+                                domain_exists=False,
+                                mx_record_exists=False,
+                                smtp_connectable=False,
                                 error_message=f"Validation error: {str(result)}",
-                                mx_records=None,
-                                smtp_connectable=False
+                                mx_records=None
                             )
                             db.add(validation_result)
                     except Exception as save_error:
@@ -363,21 +403,25 @@ When you're done, type /validate to start the validation process.
                 progress = (validated_count / len(emails)) * 100
                 progress_bar = create_progress_bar(progress)
                 
-                # Update UI efficiently - every 80 emails or at completion
-                if validated_count % 80 == 0 or validated_count == len(emails):
-                    try:
-                        await message.edit_text(
-                            f"🔄 Validating emails...\n"
-                            f"Progress: {validated_count}/{len(emails)} ({progress:.1f}%)\n"
-                            f"{progress_bar}",
-                            reply_markup=None
-                        )
-                    except Exception as update_error:
-                        logger.debug(f"Progress update failed: {update_error}")  # Ignore rate limits
+                # Update UI every batch for better feedback
+                try:
+                    elapsed = time.time() - start_time
+                    speed = validated_count / elapsed if elapsed > 0 else 0
+                    eta = (len(emails) - validated_count) / speed if speed > 0 else 0
+                    
+                    await message.edit_text(
+                        f"🔄 Validating emails...\n"
+                        f"Progress: {validated_count}/{len(emails)} ({progress:.1f}%)\n"
+                        f"{progress_bar}\n"
+                        f"Speed: {speed:.1f} emails/sec\n"
+                        f"ETA: {int(eta)}s" if eta < 300 else f"ETA: {int(eta/60)}m",
+                        reply_markup=None
+                    )
+                except Exception as update_error:
+                    logger.debug(f"Progress update failed: {update_error}")  # Ignore rate limits
                 
-                # Add small delay to prevent overwhelming the system
-                if validated_count % 100 == 0:
-                    await asyncio.sleep(0.1)
+                # Small delay between batches for stability
+                await asyncio.sleep(0.05)
             
             # Update job status
             job.status = "completed"

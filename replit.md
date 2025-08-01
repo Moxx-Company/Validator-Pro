@@ -24,11 +24,11 @@ Preferred communication style: Simple, everyday language.
 
 ### Email Validation Engine
 - **Multi-layer Validation**: Syntax validation, DNS lookup, MX record verification, smart SMTP connectivity testing
-- **Enterprise Performance**: DNS caching, 100 concurrent workers, 25-email batches for optimal throughput
+- **Stable & Reliable**: 25-email batches with 15-second timeouts, proper error handling, and recovery mechanisms
 - **Ultra-Fast SMTP Checks**: Lightning-fast SMTP validation with 0.5-second timeouts and optimized handshakes for maximum speed while maintaining accuracy
-- **Concurrent Processing**: Thread pool executor for handling multiple email validations simultaneously (15-25 emails/second)
-- **Timeout Management**: 30-second batch timeouts with graceful failure handling to prevent hanging
-- **Result Tracking**: Detailed validation results with timing and error information
+- **Concurrent Processing**: Thread pool executor with 20 workers per batch for balanced performance (15-30 emails/second)
+- **Real-time Progress**: Live speed tracking, ETA calculation, and batch-by-batch progress updates
+- **Robust Error Handling**: Individual email timeout handling, batch failure recovery, and comprehensive error logging
 - **Enterprise Scale**: Supports 1000+ concurrent users with rate limiting and queue management
 
 ### File Processing System
