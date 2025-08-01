@@ -149,3 +149,26 @@ class Keyboards:
             [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
         ]
         return InlineKeyboardMarkup(keyboard)
+    
+    @staticmethod
+    def recent_jobs_menu(jobs):
+        """Menu for recent validation jobs"""
+        keyboard = []
+        
+        # Add buttons for each job (max 5 to avoid overcrowding)
+        for job in jobs[:5]:
+            status_emoji = "✅" if job.status == "completed" else "⏳" if job.status == "processing" else "❌"
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"{status_emoji} Job #{job.id} - {job.filename or 'Manual'}",
+                    callback_data=f"details_{job.id}"
+                )
+            ])
+        
+        # Navigation buttons
+        keyboard.extend([
+            [InlineKeyboardButton("🔁 Validate More", callback_data="validate_emails")],
+            [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
+        ])
+        
+        return InlineKeyboardMarkup(keyboard)

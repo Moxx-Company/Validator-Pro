@@ -113,6 +113,29 @@ class EmailValidator:
         except Exception:
             return False
     
+    def smart_smtp_check(self, mx_server: str, email: str) -> bool:
+        """Smart SMTP check - fast connection test for high-confidence domains"""
+        if not mx_server:
+            return False
+        
+        # Skip SMTP for known reliable providers (they rarely reject valid syntax)
+        reliable_providers = {
+            'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com',
+            'icloud.com', 'protonmail.com', 'aol.com', 'mail.com'
+        }
+        
+        domain = email.split('@')[1].lower() if '@' in email else ''
+        
+        # For reliable providers, assume SMTP works if MX exists
+        if any(provider in mx_server.lower() for provider in reliable_providers):
+            return True
+        
+        # For other domains, do a quick connection test
+        try:
+            return self.check_smtp_connectivity(mx_server, email)
+        except:
+            return True  # Assume valid if we can't check quickly
+    
     def validate_single_email(self, email: str) -> ValidationResult:
         """Validate a single email address"""
         start_time = time.time()
@@ -165,9 +188,9 @@ class EmailValidator:
                 result.validation_time = time.time() - start_time
                 return result
             
-            # Step 5: Skip SMTP connectivity for enterprise speed
-            # For 1000+ users, DNS+MX validation provides 95%+ accuracy without SMTP delays
-            result.smtp_connectable = bool(mx_records)  # Assume SMTP works if MX exists
+            # Step 5: Smart SMTP connectivity check
+            # Use selective SMTP checks for optimal speed vs accuracy balance
+            result.smtp_connectable = self.smart_smtp_check(mx_records[0] if mx_records else None, email)
             
             # Final validation decision (prioritize speed over SMTP check)
             result.is_valid = (

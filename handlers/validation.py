@@ -464,3 +464,119 @@ When you're done, type /validate to start the validation process.
                 "❌ An error occurred loading job details.",
                 reply_markup=self.keyboards.main_menu()
             )
+    
+    async def download_results(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, job_id: str, db: Session):
+        """Download validation results as CSV file"""
+        try:
+            job = db.query(ValidationJob).filter(ValidationJob.id == int(job_id), ValidationJob.user_id == user.id).first()
+            if not job:
+                await update.callback_query.edit_message_text(
+                    "❌ Validation job not found.",
+                    reply_markup=self.keyboards.main_menu()
+                )
+                return
+            
+            results = db.query(ValidationResult).filter(ValidationResult.job_id == int(job_id)).all()
+            
+            if not results:
+                await update.callback_query.edit_message_text(
+                    "❌ No results found for this job.",
+                    reply_markup=self.keyboards.main_menu()
+                )
+                return
+            
+            # Create CSV content
+            import io
+            import csv
+            
+            output = io.StringIO()
+            writer = csv.writer(output)
+            
+            # Write header
+            writer.writerow(['Email', 'Status', 'Valid', 'Reason', 'Domain', 'MX Records', 'SMTP Check'])
+            
+            # Write results
+            for result in results:
+                writer.writerow([
+                    result.email,
+                    'Valid' if result.is_valid else 'Invalid',
+                    'Yes' if result.is_valid else 'No',
+                    result.error_message or 'Valid email',
+                    result.domain,
+                    ', '.join(result.mx_records) if result.mx_records else '',
+                    'Yes' if result.smtp_connectable else 'No'
+                ])
+            
+            # Convert to bytes
+            csv_content = output.getvalue().encode('utf-8')
+            output.close()
+            
+            # Send file
+            filename = f"validation_results_{job_id}.csv"
+            await context.bot.send_document(
+                chat_id=update.effective_chat.id,
+                document=io.BytesIO(csv_content),
+                filename=filename,
+                caption=f"📊 Validation results for job #{job_id}\n\n"
+                       f"Total emails: {len(results)}\n"
+                       f"Valid: {sum(1 for r in results if r.is_valid)}\n"
+                       f"Invalid: {sum(1 for r in results if not r.is_valid)}"
+            )
+            
+        except Exception as e:
+            logger.error(f"Error downloading results: {e}")
+            await update.callback_query.edit_message_text(
+                "❌ Error generating download file.",
+                reply_markup=self.keyboards.main_menu()
+            )
+    
+    async def show_recent_jobs(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session):
+        """Show user's recent validation jobs"""
+        try:
+            # Get recent jobs (last 10)
+            jobs = db.query(ValidationJob).filter(
+                ValidationJob.user_id == user.id
+            ).order_by(ValidationJob.created_at.desc()).limit(10).all()
+            
+            if not jobs:
+                await update.callback_query.edit_message_text(
+                    "📋 **Recent Jobs**\n\nNo validation jobs found.\n\nUpload an email list to get started!",
+                    reply_markup=self.keyboards.main_menu(),
+                    parse_mode='Markdown'
+                )
+                return
+            
+            # Format jobs list
+            jobs_text = "📋 **Recent Validation Jobs**\n\n"
+            
+            for job in jobs:
+                status_emoji = "✅" if job.status == "completed" else "⏳" if job.status == "processing" else "❌"
+                
+                # Get result count
+                result_count = db.query(ValidationResult).filter(ValidationResult.job_id == job.id).count()
+                valid_count = db.query(ValidationResult).filter(
+                    ValidationResult.job_id == job.id,
+                    ValidationResult.is_valid == True
+                ).count()
+                
+                jobs_text += f"""
+{status_emoji} **Job #{job.id}**
+📁 {job.filename or 'Manual input'}
+📅 {job.created_at.strftime('%Y-%m-%d %H:%M')}
+📊 {valid_count}/{result_count} valid emails
+⚡ {job.status.title()}
+
+"""
+            
+            await update.callback_query.edit_message_text(
+                jobs_text,
+                reply_markup=self.keyboards.recent_jobs_menu(jobs),
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Error showing recent jobs: {e}")
+            await update.callback_query.edit_message_text(
+                "❌ Error loading recent jobs.",
+                reply_markup=self.keyboards.main_menu()
+            )
