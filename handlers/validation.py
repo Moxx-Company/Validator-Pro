@@ -303,9 +303,9 @@ When you're done, type /validate to start the validation process.
                             job_id=job.id,
                             email=email,
                             is_valid=result.get('is_valid', False),
-                            reason=result.get('reason', 'Unknown error'),
-                            mx_record=result.get('mx_record'),
-                            smtp_check=result.get('smtp_check', False)
+                            error_message=result.get('reason', 'Unknown error'),
+                            mx_records=result.get('mx_record'),
+                            smtp_connectable=result.get('smtp_check', False)
                         )
                         db.add(validation_result)
                     
