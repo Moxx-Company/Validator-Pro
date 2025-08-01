@@ -63,7 +63,7 @@ class StartHandler:
 {WELCOME_MESSAGE}
 
 🎁 **Free Trial:**
-• Get 20,000 FREE validations (emails + phones combined)
+• Get 40,000 FREE validations (emails + phones combined)
 • No credit card required
 • Test both email and phone validation features
 • See the quality of our professional validation
@@ -97,7 +97,7 @@ Ready to start validating?
                 days_remaining = active_sub.days_remaining()
                 subscription_status = f"💎 **Active Subscription** ({days_remaining} days remaining)"
             else:
-                trial_remaining = 20000 - user.trial_validations_used
+                trial_remaining = 40000 - user.trial_validations_used
                 subscription_status = f"🆓 **Trial:** {trial_remaining} validations remaining (emails + phones)"
             
             menu_text = f"""

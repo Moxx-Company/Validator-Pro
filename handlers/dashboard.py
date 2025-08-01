@@ -150,7 +150,7 @@ What would you like to explore?
             emails_used = user.trial_emails_used or 0
             phones_used = user.trial_phones_used or 0
             total_used = emails_used + phones_used
-            trial_remaining = 20000 - total_used
+            trial_remaining = 40000 - total_used
             subscription_info = f"🆓 Trial ({trial_remaining} validations remaining)\n    📧 Emails used: {emails_used:,}\n    📱 Phones used: {phones_used:,}"
         
         # Monthly statistics
