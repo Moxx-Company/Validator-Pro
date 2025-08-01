@@ -105,6 +105,10 @@ Upgrade for unlimited access!
                 await query.edit_message_text("Please start the bot first with /start")
                 return
             
+            if data == 'subscribe' or data == 'subscription':
+                await self.show_subscription_menu(update, context)
+                return
+            
             if data == 'subscription':
                 await self.show_subscription_menu(update, context)
             
