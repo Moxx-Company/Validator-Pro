@@ -47,6 +47,7 @@ class DashboardHandler:
 📈 **Usage Statistics:**
 • Total validations: {stats['total_validations']:,}
 • Valid emails found: {stats['valid_emails']:,}
+• Valid phones found: {stats['valid_phones']:,}
 • Success rate: {stats['success_rate']}%
 • Total jobs: {stats['total_jobs']}
 
@@ -99,25 +100,46 @@ What would you like to explore?
             ValidationJob.status == 'completed'
         ).all()
         
-        # Email statistics - get from actual validation results
-        job_ids = [job.id for job in completed_jobs]
+        # Separate email and phone jobs
+        email_jobs = [job for job in completed_jobs if job.validation_type == 'email' or job.validation_type is None]
+        phone_jobs = [job for job in completed_jobs if job.validation_type == 'phone']
         
-        if job_ids:
-            # Count total validation results
-            total_validations = db.query(ValidationResult).filter(
-                ValidationResult.job_id.in_(job_ids)
+        # Email statistics - get from actual validation results
+        email_job_ids = [job.id for job in email_jobs]
+        phone_job_ids = [job.id for job in phone_jobs]
+        
+        # Count email validations
+        if email_job_ids:
+            total_email_validations = db.query(ValidationResult).filter(
+                ValidationResult.job_id.in_(email_job_ids)
             ).count()
             
-            # Count valid emails
             valid_emails = db.query(ValidationResult).filter(
-                ValidationResult.job_id.in_(job_ids),
+                ValidationResult.job_id.in_(email_job_ids),
                 ValidationResult.is_valid == True
             ).count()
         else:
-            total_validations = 0
+            total_email_validations = 0
             valid_emails = 0
+        
+        # Count phone validations
+        if phone_job_ids:
+            total_phone_validations = db.query(ValidationResult).filter(
+                ValidationResult.job_id.in_(phone_job_ids)
+            ).count()
             
-        success_rate = round((valid_emails / total_validations * 100), 1) if total_validations > 0 else 0
+            valid_phones = db.query(ValidationResult).filter(
+                ValidationResult.job_id.in_(phone_job_ids),
+                ValidationResult.is_valid == True
+            ).count()
+        else:
+            total_phone_validations = 0
+            valid_phones = 0
+        
+        # Combined statistics
+        total_validations = total_email_validations + total_phone_validations
+        total_valid = valid_emails + valid_phones
+        success_rate = round((total_valid / total_validations * 100), 1) if total_validations > 0 else 0
         
         # Subscription info
         if user.has_active_subscription():
@@ -138,28 +160,53 @@ What would you like to explore?
             ValidationJob.status == 'completed'
         ).all()
         
-        # Monthly statistics - get from actual validation results
-        month_job_ids = [job.id for job in month_jobs]
+        # Monthly statistics - separate email and phone
+        month_email_jobs = [job for job in month_jobs if job.validation_type == 'email' or job.validation_type is None]
+        month_phone_jobs = [job for job in month_jobs if job.validation_type == 'phone']
         
-        if month_job_ids:
-            month_validations = db.query(ValidationResult).filter(
-                ValidationResult.job_id.in_(month_job_ids)
+        month_email_job_ids = [job.id for job in month_email_jobs]
+        month_phone_job_ids = [job.id for job in month_phone_jobs]
+        
+        # Monthly email validations
+        if month_email_job_ids:
+            month_email_validations = db.query(ValidationResult).filter(
+                ValidationResult.job_id.in_(month_email_job_ids)
             ).count()
             
-            month_valid = db.query(ValidationResult).filter(
-                ValidationResult.job_id.in_(month_job_ids),
+            month_email_valid = db.query(ValidationResult).filter(
+                ValidationResult.job_id.in_(month_email_job_ids),
                 ValidationResult.is_valid == True
             ).count()
         else:
-            month_validations = 0
-            month_valid = 0
+            month_email_validations = 0
+            month_email_valid = 0
+        
+        # Monthly phone validations
+        if month_phone_job_ids:
+            month_phone_validations = db.query(ValidationResult).filter(
+                ValidationResult.job_id.in_(month_phone_job_ids)
+            ).count()
             
+            month_phone_valid = db.query(ValidationResult).filter(
+                ValidationResult.job_id.in_(month_phone_job_ids),
+                ValidationResult.is_valid == True
+            ).count()
+        else:
+            month_phone_validations = 0
+            month_phone_valid = 0
+        
+        # Combined monthly statistics
+        month_validations = month_email_validations + month_phone_validations
+        month_valid = month_email_valid + month_phone_valid
         month_accuracy = round((month_valid / month_validations * 100), 1) if month_validations > 0 else 0
         
         return {
             'total_jobs': total_jobs,
             'total_validations': total_validations,
+            'total_email_validations': total_email_validations,
+            'total_phone_validations': total_phone_validations,
             'valid_emails': valid_emails,
+            'valid_phones': valid_phones,
             'success_rate': success_rate,
             'subscription_info': subscription_info,
             'month_jobs': len(month_jobs),
