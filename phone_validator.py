@@ -57,35 +57,33 @@ class PhoneValidator:
     def validate_single(self, phone_number: str, default_region: str = None) -> PhoneValidationResult:
         """Validate a single phone number"""
         try:
-            # Try to parse the number
+            # Clean the input first
+            phone_number = phone_number.strip()
+            if not phone_number:
+                return PhoneValidationResult(
+                    number=phone_number,
+                    is_valid=False,
+                    error_message="Empty phone number"
+                )
+            
+            # Parse the number - be strict about format
             if phone_number.startswith('+'):
                 # International format
                 parsed = phonenumbers.parse(phone_number, None)
+            elif default_region:
+                # Only try with the specified default region
+                parsed = phonenumbers.parse(phone_number, default_region)
             else:
-                # Try with default region or common regions
-                regions_to_try = [default_region] if default_region else ['US', 'GB', 'IN', 'CA', 'AU']
-                parsed = None
-                
-                for region in regions_to_try:
-                    try:
-                        temp_parsed = phonenumbers.parse(phone_number, region)
-                        if phonenumbers.is_valid_number(temp_parsed):
-                            parsed = temp_parsed
-                            break
-                    except:
-                        continue
-                
-                if not parsed:
-                    # Try as international without +
-                    try:
-                        parsed = phonenumbers.parse(f"+{phone_number}", None)
-                    except:
-                        # If all parsing attempts fail, return invalid result
-                        return PhoneValidationResult(
-                            number=phone_number,
-                            is_valid=False,
-                            error_message="Cannot parse phone number - invalid format"
-                        )
+                # Try as US format only (most common)
+                try:
+                    parsed = phonenumbers.parse(phone_number, 'US')
+                except NumberParseException:
+                    # If US parsing fails, return invalid - don't try multiple regions
+                    return PhoneValidationResult(
+                        number=phone_number,
+                        is_valid=False,
+                        error_message="Invalid phone number format - must include country code or be valid US format"
+                    )
             
             # Check if valid
             is_valid = phonenumbers.is_valid_number(parsed)
