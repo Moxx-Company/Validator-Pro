@@ -267,7 +267,12 @@ When you're done, type /validate to start the validation process.
                 )
     
     async def process_email_validation(self, message, user: User, emails: list, db: Session, filename: str = None):
-        """Process email validation and update progress"""
+        """Process email validation and update progress with enterprise optimizations"""
+        from rate_limiter import validation_queue
+        
+        # Acquire validation slot for enterprise load balancing
+        await validation_queue.acquire()
+        
         try:
             # Create validation job
             job = ValidationJob(
@@ -287,8 +292,8 @@ When you're done, type /validate to start the validation process.
                 reply_markup=None
             )
             
-            # Process emails in batches
-            batch_size = 10  # Increased batch size for faster processing
+            # Process emails in larger batches for enterprise performance
+            batch_size = 50  # Much larger batch size for high throughput
             validated_count = 0
             
             for i in range(0, len(emails), batch_size):
@@ -299,7 +304,7 @@ When you're done, type /validate to start the validation process.
                     tasks = [self.email_validator.validate_email(email) for email in batch]
                     results = await asyncio.wait_for(
                         asyncio.gather(*tasks, return_exceptions=True),
-                        timeout=30.0  # 30 second timeout per batch
+                        timeout=60.0  # 60 second timeout for larger batches
                     )
                 except asyncio.TimeoutError:
                     # Handle timeout by marking all emails in batch as failed
@@ -342,21 +347,28 @@ When you're done, type /validate to start the validation process.
                     
                     validated_count += 1
                 
-                db.commit()
+                # Batch commit for better database performance
+                try:
+                    db.commit()
+                except Exception as commit_error:
+                    logger.error(f"Database commit error: {commit_error}")
+                    db.rollback()
                 
-                # Update progress every batch
+                # Update progress every batch (reduce UI updates for performance)
                 progress = (validated_count / len(emails)) * 100
                 progress_bar = create_progress_bar(progress)
                 
-                try:
-                    await message.edit_text(
-                        f"🔄 Validating emails...\n"
-                        f"Progress: {validated_count}/{len(emails)} ({progress:.1f}%)\n"
-                        f"{progress_bar}",
-                        reply_markup=None
-                    )
-                except:
-                    pass  # Ignore rate limit errors
+                # Update UI only every 100 emails to reduce API calls
+                if validated_count % 100 == 0 or validated_count == len(emails):
+                    try:
+                        await message.edit_text(
+                            f"🔄 Validating emails...\n"
+                            f"Progress: {validated_count}/{len(emails)} ({progress:.1f}%)\n"
+                            f"{progress_bar}",
+                            reply_markup=None
+                        )
+                    except Exception as update_error:
+                        logger.debug(f"Progress update failed: {update_error}")  # Ignore rate limits
             
             # Update job status
             job.status = "completed"
@@ -392,10 +404,17 @@ When you're done, type /validate to start the validation process.
             
         except Exception as e:
             logger.error(f"Error in email validation process: {e}")
-            job.status = "failed"
-            db.commit()
+            if 'job' in locals():
+                job.status = "failed"
+                try:
+                    db.commit()
+                except:
+                    db.rollback()
             
             await message.edit_text(
                 "❌ Validation failed. Please try again or contact support.",
                 reply_markup=self.keyboards.main_menu()
             )
+        finally:
+            # Always release validation slot
+            validation_queue.release()
