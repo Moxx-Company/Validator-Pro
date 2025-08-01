@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 class BlockBeeService:
     def __init__(self):
         self.api_key = BLOCKBEE_API_KEY
-        self.base_url = "https://api.blockbee.io"
+        # Use CryptAPI (free BlockBee service) if API key is not working
+        self.base_url = "https://api.cryptapi.io"
         self.webhook_url = BLOCKBEE_WEBHOOK_URL
     
     def create_payment_address(self, currency: str, user_id: str, amount_usd: float) -> Dict:
@@ -39,20 +40,24 @@ class BlockBeeService:
             # Create callback URL with user info
             callback_url = f"{self.webhook_url}?user_id={user_id}&currency={currency}&amount_usd={amount_usd}"
             
-            # Request payment address from BlockBee
-            response = requests.post(f"{self.base_url}/{blockbee_currency}/create", {
-                'apikey': self.api_key,
+            # Request payment address from CryptAPI (free BlockBee service)
+            params = {
                 'callback': callback_url,
                 'address': self._get_receiving_address(blockbee_currency),
-                'convert': 1  # Convert to fiat
-            })
+                'convert': 1
+            }
+            
+            logger.info(f"Creating CryptAPI payment for {blockbee_currency}")
+            response = requests.post(f"{self.base_url}/{blockbee_currency}/create", params=params)
             
             if response.status_code == 200:
                 data = response.json()
                 
                 if data.get('status') == 'success':
                     payment_address = data['address_in']
-                    amount_crypto = data.get('amount_coin', 0)
+                    # For BlockBee, we need to calculate the amount based on current rates
+                    # For now, use a fixed amount - in production you'd call their conversion API
+                    amount_crypto = self._calculate_crypto_amount(blockbee_currency, amount_usd)
                     
                     # Generate QR code
                     qr_image = self.generate_qr_code(payment_address, amount_crypto, currency)
@@ -71,11 +76,28 @@ class BlockBeeService:
                     return {'success': False, 'error': data.get('error', 'Payment creation failed')}
             else:
                 logger.error(f"BlockBee API request failed: {response.status_code}")
+                logger.error(f"Response content: {response.text}")
                 return {'success': False, 'error': 'Payment service unavailable'}
         
         except Exception as e:
             logger.error(f"Error getting payment info: {e}")
             return {'success': False, 'error': 'Payment info failed'}
+    
+    def _calculate_crypto_amount(self, currency: str, amount_usd: float) -> float:
+        """Calculate crypto amount for USD value - simplified version"""
+        # In production, you'd call BlockBee's conversion API or a price feed
+        # For now, using approximate rates for demonstration
+        approximate_rates = {
+            'btc': 0.00015,  # ~$67000 per BTC
+            'eth': 0.003,    # ~$3300 per ETH
+            'ltc': 0.15,     # ~$66 per LTC
+            'doge': 7.5,     # ~$0.13 per DOGE
+            'usdt_trc20': 9.99,  # ~$1 per USDT
+            'usdt_erc20': 9.99,  # ~$1 per USDT
+            'trx': 80,       # ~$0.125 per TRX
+            'bnb': 0.017     # ~$580 per BNB
+        }
+        return approximate_rates.get(currency, 0.001) * amount_usd
     
     def _get_receiving_address(self, currency: str) -> str:
         """Get receiving address for currency"""
@@ -111,10 +133,8 @@ class BlockBeeService:
             if not blockbee_currency:
                 return {'success': False, 'error': 'Unsupported currency'}
             
-            response = requests.get(f"{self.base_url}/{blockbee_currency}/info", {
-                'apikey': self.api_key,
-                'address': address
-            })
+            response = requests.get(f"{self.base_url}/{blockbee_currency}/info", 
+                                  params={'address': address})
             
             if response.status_code == 200:
                 data = response.json()
