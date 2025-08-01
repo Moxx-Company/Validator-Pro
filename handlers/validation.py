@@ -292,8 +292,8 @@ When you're done, type /validate to start the validation process.
                 reply_markup=None
             )
             
-            # Process emails in smaller batches to prevent timeouts
-            batch_size = 25  # Reduced batch size for reliability
+            # Process emails in optimized batches for speed + reliability
+            batch_size = 40  # Optimized batch size for maximum throughput
             validated_count = 0
             
             for i in range(0, len(emails), batch_size):
@@ -363,8 +363,8 @@ When you're done, type /validate to start the validation process.
                 progress = (validated_count / len(emails)) * 100
                 progress_bar = create_progress_bar(progress)
                 
-                # Update UI regularly but not too frequently
-                if i % (batch_size * 2) == 0 or validated_count == len(emails):
+                # Update UI efficiently - every 80 emails or at completion
+                if validated_count % 80 == 0 or validated_count == len(emails):
                     try:
                         await message.edit_text(
                             f"🔄 Validating emails...\n"

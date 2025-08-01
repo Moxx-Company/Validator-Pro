@@ -25,7 +25,7 @@ Preferred communication style: Simple, everyday language.
 ### Email Validation Engine
 - **Multi-layer Validation**: Syntax validation, DNS lookup, MX record verification, smart SMTP connectivity testing
 - **Enterprise Performance**: DNS caching, 100 concurrent workers, 25-email batches for optimal throughput
-- **Smart SMTP Checks**: Intelligent SMTP validation that skips checks for reliable providers (Gmail, Yahoo, etc.) for maximum speed
+- **Ultra-Fast SMTP Checks**: Lightning-fast SMTP validation with 0.5-second timeouts and optimized handshakes for maximum speed while maintaining accuracy
 - **Concurrent Processing**: Thread pool executor for handling multiple email validations simultaneously (15-25 emails/second)
 - **Timeout Management**: 30-second batch timeouts with graceful failure handling to prevent hanging
 - **Result Tracking**: Detailed validation results with timing and error information

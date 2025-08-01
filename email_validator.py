@@ -26,7 +26,7 @@ class ValidationResult:
     validation_time: float
 
 class EmailValidator:
-    def __init__(self, timeout: int = 1, max_workers: int = 100):
+    def __init__(self, timeout: int = 0.5, max_workers: int = 150):
         self.timeout = timeout
         self.max_workers = max_workers
         self.dns_resolver = dns.resolver.Resolver()
@@ -35,6 +35,8 @@ class EmailValidator:
         # Cache for DNS lookups to avoid repeated queries
         self.domain_cache = {}
         self.mx_cache = {}
+        # Configure DNS resolver for maximum speed
+        self.dns_resolver.cache = dns.resolver.LRUCache(max_size=1000)
     
     def validate_syntax(self, email: str) -> bool:
         """Validate email syntax using regex"""
@@ -82,59 +84,44 @@ class EmailValidator:
             return []
     
     def check_smtp_connectivity(self, mx_record: str, email: str) -> bool:
-        """Check SMTP connectivity to MX record (fast check)"""
+        """Ultra-fast SMTP connectivity check"""
         try:
-            # Create socket with short timeout for speed
+            # Phase 1: Quick socket connection test (0.5 second timeout)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(1)  # Very short timeout for speed
+            sock.settimeout(0.5)  # Ultra-fast timeout
             
-            # Try to connect to SMTP server
             result = sock.connect_ex((mx_record, 25))
             sock.close()
             
-            if result == 0:
-                # Try SMTP conversation
-                try:
-                    server = smtplib.SMTP(timeout=self.timeout)
-                    server.connect(mx_record, 25)
-                    server.helo('validator.com')
-                    
-                    # Try RCPT TO command
-                    code, message = server.rcpt(email)
-                    server.quit()
-                    
-                    # Code 250 means accepted, 550 means rejected
-                    return code == 250
-                    
-                except Exception:
-                    return False
-            return False
+            if result != 0:
+                return False
             
+            # Phase 2: Lightning-fast SMTP handshake
+            with smtplib.SMTP(timeout=0.5) as server:
+                server.connect(mx_record, 25)
+                server.helo('validator.com')
+                
+                # Quick MAIL FROM and RCPT TO test
+                server.mail('test@validator.com')
+                code, message = server.rcpt(email)
+                
+                # Accept codes: 250 (OK), 251 (forwarded), 252 (cannot verify but will accept)
+                return code in [250, 251, 252]
+                
         except Exception:
             return False
     
     def smart_smtp_check(self, mx_server: str, email: str) -> bool:
-        """Smart SMTP check - fast connection test for high-confidence domains"""
+        """Enhanced SMTP check - fast but thorough validation"""
         if not mx_server:
             return False
         
-        # Skip SMTP for known reliable providers (they rarely reject valid syntax)
-        reliable_providers = {
-            'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com',
-            'icloud.com', 'protonmail.com', 'aol.com', 'mail.com'
-        }
-        
-        domain = email.split('@')[1].lower() if '@' in email else ''
-        
-        # For reliable providers, assume SMTP works if MX exists
-        if any(provider in mx_server.lower() for provider in reliable_providers):
-            return True
-        
-        # For other domains, do a quick connection test
+        # Always perform SMTP check but with optimizations for speed
         try:
             return self.check_smtp_connectivity(mx_server, email)
-        except:
-            return True  # Assume valid if we can't check quickly
+        except Exception as e:
+            # If SMTP check fails, still return False for accuracy
+            return False
     
     def validate_single_email(self, email: str) -> ValidationResult:
         """Validate a single email address"""
