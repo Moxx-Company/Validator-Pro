@@ -529,7 +529,7 @@ When you're done, click "Start Validation" below.
             # Update job completion
             job.status = "completed"
             job.completed_at = datetime.now()
-            job.validated_items = len(phone_numbers)
+            job.processed_items = len(phone_numbers)
             job.valid_items = valid_count
             job.invalid_items = len(phone_numbers) - valid_count
             db.commit()

@@ -145,7 +145,14 @@ class ValidationJob(Base):
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     
     # Job details
+    validation_type = Column(String, default='email')  # 'email' or 'phone'
     filename = Column(String, nullable=False)
+    total_items = Column(Integer, default=0)  # Generic field for emails or phones
+    processed_items = Column(Integer, default=0)  # Generic field
+    valid_items = Column(Integer, default=0)  # Generic field
+    invalid_items = Column(Integer, default=0)  # Generic field
+    
+    # Legacy email-specific fields (for backward compatibility)
     total_emails = Column(Integer, default=0)
     processed_emails = Column(Integer, default=0)
     valid_emails = Column(Integer, default=0)
@@ -174,9 +181,11 @@ class ValidationJob(Base):
     @property
     def progress_percentage(self):
         """Get completion percentage"""
-        if self.total_emails == 0:
+        total = self.total_items if self.total_items > 0 else self.total_emails
+        processed = self.processed_items if self.total_items > 0 else self.processed_emails
+        if total == 0:
             return 0
-        return int((self.processed_emails / self.total_emails) * 100)
+        return int((processed / total) * 100)
     
     def is_completed(self):
         """Check if job is completed"""
@@ -187,20 +196,31 @@ class ValidationResult(Base):
     
     id = Column(Integer, primary_key=True)
     job_id = Column(Integer, ForeignKey('validation_jobs.id'), nullable=False)
+    validation_type = Column(String, default='email')  # 'email' or 'phone'
     
     # Email details
-    email = Column(String, nullable=False, index=True)
+    email = Column(String, nullable=True, index=True)
     is_valid = Column(Boolean, default=False)
     
-    # Validation details
+    # Email validation details
     syntax_valid = Column(Boolean, default=False)
     domain_exists = Column(Boolean, default=False)
     mx_record_exists = Column(Boolean, default=False)
     smtp_connectable = Column(Boolean, default=False)
-    
-    # Additional info
     domain = Column(String, nullable=True)
     mx_records = Column(Text, nullable=True)  # JSON string
+    
+    # Phone number details
+    phone_number = Column(String, nullable=True, index=True)
+    formatted_international = Column(String, nullable=True)
+    formatted_national = Column(String, nullable=True)
+    country_code = Column(String, nullable=True)
+    country_name = Column(String, nullable=True)
+    carrier = Column(String, nullable=True)
+    number_type = Column(String, nullable=True)
+    timezone = Column(String, nullable=True)
+    
+    # Common fields
     error_message = Column(String, nullable=True)
     validation_time = Column(Float, default=0.0)  # seconds
     
@@ -211,7 +231,10 @@ class ValidationResult(Base):
     job = relationship("ValidationJob", back_populates="results")
     
     def __repr__(self):
-        return f"<ValidationResult(email={self.email}, is_valid={self.is_valid})>"
+        if self.validation_type == 'phone':
+            return f"<ValidationResult(phone={self.phone_number}, is_valid={self.is_valid})>"
+        else:
+            return f"<ValidationResult(email={self.email}, is_valid={self.is_valid})>"
 
 class UsageStats(Base):
     __tablename__ = 'usage_stats'
