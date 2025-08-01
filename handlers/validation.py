@@ -541,6 +541,11 @@ When you're done, type /validate to start the validation process.
                 )
                 return
             
+            # Sort results: valid emails first, then invalid
+            valid_results = [r for r in results if r.is_valid]
+            invalid_results = [r for r in results if not r.is_valid]
+            sorted_results = valid_results + invalid_results
+            
             # Create CSV content
             import io
             import csv
@@ -551,17 +556,34 @@ When you're done, type /validate to start the validation process.
             # Write header
             writer.writerow(['Email', 'Status', 'Valid', 'Reason', 'Domain', 'MX Records', 'SMTP Check'])
             
-            # Write results
-            for result in results:
-                writer.writerow([
-                    result.email,
-                    'Valid' if result.is_valid else 'Invalid',
-                    'Yes' if result.is_valid else 'No',
-                    result.error_message or 'Valid email',
-                    result.domain,
-                    ', '.join(result.mx_records) if result.mx_records else '',
-                    'Yes' if result.smtp_connectable else 'No'
-                ])
+            # Add section marker for valid emails
+            if valid_results:
+                writer.writerow(['=== VALID EMAILS ===', '', '', '', '', '', ''])
+                for result in valid_results:
+                    writer.writerow([
+                        result.email,
+                        'Valid',
+                        'Yes',
+                        'Valid email - all checks passed',
+                        result.domain or '',
+                        json.loads(result.mx_records)[0] if result.mx_records else '',
+                        'Yes'
+                    ])
+            
+            # Add section marker for invalid emails
+            if invalid_results:
+                writer.writerow(['', '', '', '', '', '', ''])  # Empty row
+                writer.writerow(['=== INVALID EMAILS ===', '', '', '', '', '', ''])
+                for result in invalid_results:
+                    writer.writerow([
+                        result.email,
+                        'Invalid',
+                        'No',
+                        result.error_message or 'Failed validation',
+                        result.domain or '',
+                        json.loads(result.mx_records)[0] if result.mx_records else '',
+                        'Yes' if result.smtp_connectable else 'No'
+                    ])
             
             # Convert to bytes
             csv_content = output.getvalue().encode('utf-8')
