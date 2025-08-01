@@ -54,7 +54,8 @@ class ValidationHandler:
                 await self.show_file_upload_options(update, context, 'email')
                 
             elif data.startswith('upload_file_'):
-                validation_type = data.split('_')[-1]  # emails or phones
+                validation_type = data.split('_')[-1]  # email or phone  
+                context.user_data['validation_type'] = validation_type
                 await self.show_file_upload_options(update, context, validation_type)
             
             elif data.startswith('recent_jobs_'):
@@ -91,6 +92,9 @@ class ValidationHandler:
     
     async def show_validation_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, validation_type: str = 'email'):
         """Show validation options for email or phone"""
+        # Store validation type in user context
+        context.user_data['validation_type'] = validation_type
+        
         with SessionLocal() as db:
             user = db.query(User).filter(User.telegram_id == str(user.telegram_id)).first()
             
@@ -208,6 +212,7 @@ Just drag and drop your file or click the attachment button and send it to me.
     
     async def start_email_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Start manual email input process"""
+        context.user_data['validation_type'] = 'email'
         context.user_data['waiting_for_emails'] = True
         context.user_data['collected_emails'] = []
         
@@ -329,6 +334,7 @@ When you're done, click "Start Validation" below or type /done.
     
     async def start_phone_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Start manual phone number input process"""
+        context.user_data['validation_type'] = 'phone'
         context.user_data['waiting_for_phones'] = True
         context.user_data['collected_phones'] = []
         

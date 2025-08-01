@@ -76,51 +76,59 @@ class FileProcessor:
         
         try:
             if file_ext == '.csv':
-                # Try to read CSV with pandas
                 df = pd.read_csv(file_path)
-                # Look for phone columns
-                phone_columns = [col for col in df.columns if 'phone' in col.lower() or 'mobile' in col.lower() or 'cell' in col.lower()]
+                # Try common column names for phone numbers
+                phone_columns = ['phone', 'Phone', 'PHONE', 'phone_number', 'Phone Number', 'PhoneNumber', 'number', 'Number']
+                phone_column = None
                 
-                if phone_columns:
-                    # Use first phone column found
-                    phones = df[phone_columns[0]].dropna().astype(str).tolist()
+                for col in phone_columns:
+                    if col in df.columns:
+                        phone_column = col
+                        break
+                
+                if phone_column:
+                    # Read from specified column
+                    phones = df[phone_column].dropna().astype(str).tolist()
                 else:
-                    # Try first column
-                    phones = df.iloc[:, 0].dropna().astype(str).tolist()
-                    
+                    # Use first column as fallback
+                    if len(df.columns) > 0:
+                        phones = df.iloc[:, 0].dropna().astype(str).tolist()
+                        
             elif file_ext in ['.xlsx', '.xls']:
-                # Read Excel file
                 df = pd.read_excel(file_path)
-                # Look for phone columns
-                phone_columns = [col for col in df.columns if 'phone' in col.lower() or 'mobile' in col.lower() or 'cell' in col.lower()]
+                # Try common column names for phone numbers
+                phone_columns = ['phone', 'Phone', 'PHONE', 'phone_number', 'Phone Number', 'PhoneNumber', 'number', 'Number']
+                phone_column = None
                 
-                if phone_columns:
-                    phones = df[phone_columns[0]].dropna().astype(str).tolist()
+                for col in phone_columns:
+                    if col in df.columns:
+                        phone_column = col
+                        break
+                
+                if phone_column:
+                    phones = df[phone_column].dropna().astype(str).tolist()
                 else:
-                    # Try first column
-                    phones = df.iloc[:, 0].dropna().astype(str).tolist()
-                    
-            else:
-                # Read as text file
+                    # Use first column as fallback
+                    if len(df.columns) > 0:
+                        phones = df.iloc[:, 0].dropna().astype(str).tolist()
+                        
+            elif file_ext == '.txt':
                 with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    # Split by newlines and filter empty lines
-                    lines = [line.strip() for line in content.splitlines() if line.strip()]
-                    phones = lines
+                    lines = f.readlines()
+                phones = [line.strip() for line in lines if line.strip()]
             
-            # Clean phone numbers (basic cleaning)
+            # Clean and filter phone numbers
             cleaned_phones = []
             for phone in phones:
-                # Remove common non-phone characters but keep + for international
                 phone_str = str(phone).strip()
-                # Only filter out completely empty strings - let validator handle length validation
-                if phone_str:
+                # Skip empty or very short strings
+                if len(phone_str) >= 7:  # Minimum reasonable phone length
                     cleaned_phones.append(phone_str)
-            
+                    
             return cleaned_phones
             
         except Exception as e:
-            raise Exception(f"Error reading phone numbers: {str(e)}")
+            raise Exception(f"Error reading phone numbers from file: {str(e)}")
     
     def create_temp_file(self, file_content: bytes, extension: str) -> str:
         """Create temporary file from content"""
