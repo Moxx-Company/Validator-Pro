@@ -164,6 +164,7 @@ You're all set up and ready to start validating emails!
 Let's validate your first emails!
         """
         
+        query = update.callback_query
         await query.edit_message_text(
             onboarding_complete_text,
             reply_markup=self.keyboards.main_menu(),
