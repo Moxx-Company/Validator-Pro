@@ -96,7 +96,7 @@ Ready to validate your first emails?
                 days_remaining = active_sub.days_remaining()
                 subscription_status = f"💎 **Active Subscription** ({days_remaining} days remaining)"
             else:
-                trial_remaining = 10 - user.trial_emails_used
+                trial_remaining = 50 - user.trial_emails_used
                 subscription_status = f"🆓 **Trial:** {trial_remaining} validations remaining"
             
             menu_text = f"""
@@ -152,7 +152,7 @@ Welcome back, {user.full_name}!
 You're all set up and ready to start validating emails!
 
 **Your Free Trial:**
-• 10 email validations included
+• 50 email validations included
 • Full access to all features
 • No time limit on trial usage
 

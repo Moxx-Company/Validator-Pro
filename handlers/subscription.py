@@ -102,7 +102,12 @@ Upgrade now for unlimited email validation!
                 await self.show_payment_history(update, context, user)
             
             elif data.startswith('pay_'):
-                payment_method = data.split('_')[1]
+                # Handle both single currency codes (btc) and compound codes (usdt_trc20)
+                payment_parts = data.split('_')[1:]
+                if len(payment_parts) == 1:
+                    payment_method = payment_parts[0]
+                else:
+                    payment_method = '_'.join(payment_parts)
                 await self.initiate_payment(update, context, user, payment_method, db)
             
             elif data.startswith('confirm_payment_'):
@@ -119,7 +124,12 @@ We accept cryptocurrency payments for maximum privacy and security.
 **Available Cryptocurrencies:**
 • **Bitcoin (BTC)** - Most popular crypto
 • **Ethereum (ETH)** - Fast and reliable
-• **USDT** - Stable value (pegged to USD)
+• **Litecoin (LTC)** - Fast transactions
+• **Dogecoin (DOGE)** - Low fees
+• **USDT (TRC20)** - Stable value, low fees
+• **USDT (ERC20)** - Stable value, Ethereum network
+• **TRON (TRX)** - Fast and cheap
+• **BNB Smart Chain** - Low fees
 
 **Payment Process:**
 1. Select cryptocurrency

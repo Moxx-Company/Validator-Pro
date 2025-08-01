@@ -6,12 +6,17 @@ requires-python = ">=3.11"
 dependencies = [
     "asyncio>=3.4.3",
     "dnspython>=2.7.0",
+    "flask>=3.1.1",
     "flask-dance>=7.1.0",
     "flask-login>=0.6.3",
+    "gunicorn>=23.0.0",
     "oauthlib>=3.3.1",
     "openpyxl>=3.1.5",
     "pandas>=2.3.1",
+    "pillow>=11.3.0",
     "pyjwt>=2.10.1",
-    "python-telegram-bot>=22.3",
+    "python-telegram-bot==21.7",
+    "qrcode[pil]>=8.2",
+    "requests>=2.32.4",
     "sqlalchemy>=2.0.42",
 ]

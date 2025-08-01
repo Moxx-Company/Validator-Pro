@@ -145,12 +145,41 @@ def validate_crypto_transaction(tx_hash: str, expected_amount: float, currency: 
     return True
 
 def get_crypto_price(currency: str) -> float:
-    """Get current crypto price in USD (placeholder implementation)"""
-    # This would integrate with price APIs like CoinGecko, CoinMarketCap, etc.
-    # Placeholder prices for demo
-    prices = {
-        'bitcoin': 43000.0,
-        'ethereum': 2500.0,
-        'usdt': 1.0
-    }
-    return prices.get(currency.lower(), 1.0)
+    """Get current crypto price in USD"""
+    try:
+        import requests
+        # Map currency names to CoinGecko IDs
+        coin_mapping = {
+            'btc': 'bitcoin',
+            'bitcoin': 'bitcoin',
+            'eth': 'ethereum', 
+            'ethereum': 'ethereum',
+            'ltc': 'litecoin',
+            'litecoin': 'litecoin',
+            'doge': 'dogecoin',
+            'dogecoin': 'dogecoin',
+            'usdt': 'tether',
+            'usdt_trc20': 'tether',
+            'usdt_erc20': 'tether',
+            'trx': 'tron',
+            'tron': 'tron',
+            'bsc': 'binancecoin'
+        }
+        
+        coin_id = coin_mapping.get(currency.lower())
+        if not coin_id:
+            return 1.0
+        
+        response = requests.get(
+            f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd",
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return data.get(coin_id, {}).get('usd', 1.0)
+        
+        return 1.0
+        
+    except Exception:
+        return 1.0

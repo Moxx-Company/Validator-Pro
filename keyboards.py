@@ -46,9 +46,14 @@ class Keyboards:
     def payment_methods():
         """Payment method selection"""
         keyboard = [
-            [InlineKeyboardButton("₿ Bitcoin", callback_data="pay_bitcoin")],
-            [InlineKeyboardButton("Ξ Ethereum", callback_data="pay_ethereum")],
-            [InlineKeyboardButton("💰 USDT", callback_data="pay_usdt")],
+            [InlineKeyboardButton("₿ Bitcoin (BTC)", callback_data="pay_btc")],
+            [InlineKeyboardButton("⟠ Ethereum (ETH)", callback_data="pay_eth")],
+            [InlineKeyboardButton("Ł Litecoin (LTC)", callback_data="pay_ltc")],
+            [InlineKeyboardButton("🐕 Dogecoin (DOGE)", callback_data="pay_doge")],
+            [InlineKeyboardButton("💰 USDT (TRC20)", callback_data="pay_usdt_trc20")],
+            [InlineKeyboardButton("💵 USDT (ERC20)", callback_data="pay_usdt_erc20")],
+            [InlineKeyboardButton("⚡ TRON (TRX)", callback_data="pay_trx")],
+            [InlineKeyboardButton("🟡 BNB Smart Chain", callback_data="pay_bsc")],
             [InlineKeyboardButton("🔙 Back", callback_data="subscription")]
         ]
         return InlineKeyboardMarkup(keyboard)

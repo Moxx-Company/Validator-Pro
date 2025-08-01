@@ -110,7 +110,7 @@ What would you like to explore?
             days_remaining = active_sub.days_remaining()
             subscription_info = f"✅ Active ({days_remaining} days remaining)"
         else:
-            trial_remaining = 10 - user.trial_emails_used
+            trial_remaining = 50 - user.trial_emails_used
             subscription_info = f"🆓 Trial ({trial_remaining} validations remaining)"
         
         # Monthly statistics

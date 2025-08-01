@@ -52,7 +52,7 @@ class User(Base):
         """Check if user can validate emails"""
         if self.has_active_subscription():
             return True
-        return (self.trial_emails_used + count) <= 10
+        return (self.trial_emails_used + count) <= 50
 
 class Subscription(Base):
     __tablename__ = 'subscriptions'

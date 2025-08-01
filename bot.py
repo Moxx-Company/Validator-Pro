@@ -5,7 +5,7 @@ import os
 import logging
 import asyncio
 from datetime import datetime
-from telegram import Update, Bot
+from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, 
     MessageHandler, filters, ContextTypes

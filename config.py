@@ -10,8 +10,8 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', 'your_bot_token_here')
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///email_validator.db')
 
 # Subscription Configuration
-SUBSCRIPTION_PRICE_USD = 29.99
-TRIAL_EMAIL_LIMIT = 10
+SUBSCRIPTION_PRICE_USD = 9.99
+TRIAL_EMAIL_LIMIT = 50
 SUBSCRIPTION_DURATION_DAYS = 30
 
 # Email Validation Configuration
@@ -19,9 +19,21 @@ MAX_CONCURRENT_VALIDATIONS = 50
 VALIDATION_TIMEOUT = 10  # seconds
 MAX_FILE_SIZE_MB = 10
 
-# Crypto Payment Configuration (placeholder)
-CRYPTO_WALLET_ADDRESS = os.getenv('CRYPTO_WALLET_ADDRESS', 'wallet_address_here')
-PAYMENT_CONFIRMATION_TIMEOUT = 3600  # 1 hour
+# BlockBee Configuration
+BLOCKBEE_API_KEY = os.getenv('BLOCKBEE_API_KEY', 'your_blockbee_api_key')
+BLOCKBEE_WEBHOOK_URL = os.getenv('BLOCKBEE_WEBHOOK_URL', 'https://your-app.replit.app/webhook/blockbee')
+
+# Supported cryptocurrencies
+SUPPORTED_CRYPTOS = {
+    'btc': 'Bitcoin',
+    'eth': 'Ethereum', 
+    'ltc': 'Litecoin',
+    'doge': 'Dogecoin',
+    'usdt_trc20': 'USDT (TRC20)',
+    'usdt_erc20': 'USDT (ERC20)',
+    'trx': 'TRON',
+    'bsc': 'BNB Smart Chain'
+}
 
 # File Processing
 ALLOWED_FILE_EXTENSIONS = ['.csv', '.txt', '.xlsx', '.xls']
@@ -35,13 +47,12 @@ I help you validate bulk email lists with high accuracy.
 
 ✅ **Features:**
 • DNS & MX record validation
-• SMTP connectivity checks  
 • Bulk processing (CSV/Excel/TXT)
 • Detailed validation reports
 • Usage statistics & dashboard
 
-📊 **Subscription:** $29.99/month
-🆓 **Trial:** 10 free validations
+📊 **Subscription:** $9.99/month
+🆓 **Trial:** 50 free validations
 
 Ready to get started?
 """
@@ -49,7 +60,7 @@ Ready to get started?
 SUBSCRIPTION_INFO = """
 💎 **Email Validator Pro Subscription**
 
-**Price:** $29.99/month
+**Price:** $9.99/month
 **Duration:** 30 days
 **Payment:** Cryptocurrency
 
