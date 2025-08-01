@@ -22,7 +22,7 @@ MAX_FILE_SIZE_MB = 10
 
 # BlockBee Configuration
 BLOCKBEE_API_KEY = os.getenv('BLOCKBEE_API_KEY', 'your_blockbee_api_key')
-BLOCKBEE_WEBHOOK_URL = os.getenv('BLOCKBEE_WEBHOOK_URL', 'https://your-app.replit.app/webhook/blockbee')
+BLOCKBEE_WEBHOOK_URL = os.getenv('REPLIT_DOMAINS', 'https://your-app.replit.app').split(',')[0] + '/webhook/blockbee' if os.getenv('REPLIT_DOMAINS') else 'https://your-app.replit.app/webhook/blockbee'
 
 # Supported cryptocurrencies
 SUPPORTED_CRYPTOS = {

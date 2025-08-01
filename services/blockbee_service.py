@@ -43,7 +43,7 @@ class BlockBeeService:
             response = requests.post(f"{self.base_url}/{blockbee_currency}/create", {
                 'apikey': self.api_key,
                 'callback': callback_url,
-                'address': 'your_receiving_address',  # Your receiving address
+                'address': self._get_receiving_address(blockbee_currency),
                 'convert': 1  # Convert to fiat
             })
             
@@ -72,6 +72,58 @@ class BlockBeeService:
             else:
                 logger.error(f"BlockBee API request failed: {response.status_code}")
                 return {'success': False, 'error': 'Payment service unavailable'}
+        
+        except Exception as e:
+            logger.error(f"Error getting payment info: {e}")
+            return {'success': False, 'error': 'Payment info failed'}
+    
+    def _get_receiving_address(self, currency: str) -> str:
+        """Get receiving address for currency"""
+        # These should be your actual wallet addresses
+        receiving_addresses = {
+            'btc': '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',  # Replace with your BTC address
+            'eth': '0x0000000000000000000000000000000000000000',  # Replace with your ETH address
+            'ltc': 'LQTpS7fTcLjqKssPGNnZuoruZSZTBwKTDS',  # Replace with your LTC address
+            'doge': 'DG2mPCnCPXzbwiqKpE1husv3FA9s5t1WMt',  # Replace with your DOGE address
+            'usdt_trc20': 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',  # Replace with your USDT TRC20 address
+            'usdt_erc20': '0x0000000000000000000000000000000000000000',  # Replace with your USDT ERC20 address
+            'trx': 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t',  # Replace with your TRX address
+            'bnb': '0x0000000000000000000000000000000000000000'  # Replace with your BNB address
+        }
+        
+        return receiving_addresses.get(currency, receiving_addresses['btc'])
+    
+    def get_payment_info(self, address: str, currency: str) -> Dict:
+        """Get payment information for an address"""
+        try:
+            currency_mapping = {
+                'btc': 'btc',
+                'eth': 'eth', 
+                'ltc': 'ltc',
+                'doge': 'doge',
+                'usdt_trc20': 'usdt_trc20',
+                'usdt_erc20': 'usdt_erc20',
+                'trx': 'trx',
+                'bsc': 'bnb'
+            }
+            
+            blockbee_currency = currency_mapping.get(currency.lower())
+            if not blockbee_currency:
+                return {'success': False, 'error': 'Unsupported currency'}
+            
+            response = requests.get(f"{self.base_url}/{blockbee_currency}/info", {
+                'apikey': self.api_key,
+                'address': address
+            })
+            
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    'success': True,
+                    'data': data
+                }
+            else:
+                return {'success': False, 'error': 'API request failed'}
                 
         except Exception as e:
             logger.error(f"Error creating payment address: {e}")

@@ -133,6 +133,10 @@ Upgrade for unlimited access!
                     payment_method = '_'.join(payment_parts)
                 await self.initiate_payment(update, context, user, payment_method, db)
             
+            elif data.startswith('check_payment_'):
+                subscription_id = data.split('_')[-1]
+                await self.check_payment_status(update, context, user, subscription_id, db)
+            
             elif data.startswith('confirm_payment_'):
                 await self.confirm_demo_payment(update, context, user, db)
     
@@ -172,8 +176,9 @@ Select your preferred payment method:
     async def initiate_payment(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, payment_method: str, db: Session):
         """Initiate payment process"""
         try:
-            # Simple mock payment flow
             from config import SUPPORTED_CRYPTOS
+            from services.blockbee_service import BlockBeeService
+            
             if payment_method not in SUPPORTED_CRYPTOS:
                 await update.callback_query.edit_message_text(
                     f"❌ Unsupported payment method: {payment_method}",
@@ -181,32 +186,71 @@ Select your preferred payment method:
                 )
                 return
             
+            # Show processing message
+            await update.callback_query.edit_message_text(
+                "🔄 Creating payment address...\nPlease wait a moment.",
+                parse_mode='Markdown'
+            )
+            
+            # Create BlockBee service and generate payment address
+            blockbee = BlockBeeService()
+            payment_result = blockbee.create_payment_address(
+                currency=payment_method,
+                user_id=str(user.id),
+                amount_usd=9.99
+            )
+            
+            if not payment_result['success']:
+                await update.callback_query.edit_message_text(
+                    f"❌ Error creating payment: {payment_result.get('error', 'Unknown error')}",
+                    reply_markup=self.keyboards.back_to_menu()
+                )
+                return
+            
+            # Create pending subscription record
+            subscription = Subscription(
+                user_id=user.id,
+                status='pending',
+                amount_usd=9.99,
+                currency='USD',
+                payment_address=payment_result['address'],
+                payment_amount_crypto=payment_result['amount_crypto'],
+                payment_currency_crypto=payment_method.upper()
+            )
+            db.add(subscription)
+            db.commit()
+            db.refresh(subscription)
+            
+            # Format payment instructions
+            crypto_name = SUPPORTED_CRYPTOS[payment_method]
             payment_text = f"""
-💰 **Payment Instructions - {SUPPORTED_CRYPTOS[payment_method]}**
+💰 **Payment Instructions - {crypto_name}**
 
-**Amount:** $9.99 USD
-**Payment Method:** {payment_method.upper()}
+**Amount:** {payment_result['amount_crypto']:.8f} {payment_method.upper()}
+**USD Value:** $9.99
 
-🚧 **Demo Mode Notice**
-This is a demonstration bot. Real payment processing is not active.
+**Payment Address:**
+`{payment_result['address']}`
 
-To test subscription features:
-• Click "I've Sent Payment" below
-• The system will simulate payment confirmation
-• Your subscription will be activated for testing
+⚠️ **Important:**
+• Send EXACTLY {payment_result['amount_crypto']:.8f} {payment_method.upper()}
+• Payment will be detected automatically
+• Subscription activates after 1 confirmation
+• Do not send from exchange (use personal wallet)
 
-**Demo Order ID:** `demo_{user.id}`
+**Status:** Waiting for payment...
+**Order ID:** `{subscription.id}`
             """
             
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-            confirmation_keyboard = [
-                [InlineKeyboardButton("✅ I've Sent Payment", callback_data=f"confirm_payment_demo_{user.id}")],
+            keyboard = [
+                [InlineKeyboardButton("🔄 Check Payment", callback_data=f"check_payment_{subscription.id}")],
                 [InlineKeyboardButton("🔙 Cancel", callback_data="subscription")]
             ]
             
             await update.callback_query.edit_message_text(
                 payment_text,
-                reply_markup=InlineKeyboardMarkup(confirmation_keyboard),
+                reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode='Markdown'
             )
             
@@ -259,6 +303,64 @@ Thank you for testing the Email & Phone Validator Pro!
             logger.error(f"Error confirming demo payment: {e}")
             await update.callback_query.edit_message_text(
                 "❌ Error processing payment. Please try again.",
+                reply_markup=self.keyboards.subscription_menu(False, True)
+            )
+    
+    async def check_payment_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, subscription_id: str, db: Session):
+        """Check payment status via BlockBee API"""
+        try:
+            subscription = db.query(Subscription).filter(
+                Subscription.id == int(subscription_id),
+                Subscription.user_id == user.id
+            ).first()
+            
+            if not subscription:
+                await update.callback_query.edit_message_text(
+                    "❌ Payment not found.",
+                    reply_markup=self.keyboards.subscription_menu(False, True)
+                )
+                return
+            
+            if subscription.status == 'active':
+                await update.callback_query.edit_message_text(
+                    "✅ Payment confirmed! Your subscription is already active.",
+                    reply_markup=self.keyboards.subscription_menu(True)
+                )
+                return
+            
+            # Show current status
+            from config import SUPPORTED_CRYPTOS
+            crypto_name = SUPPORTED_CRYPTOS.get(subscription.payment_currency_crypto.lower(), subscription.payment_currency_crypto)
+            
+            status_text = f"""
+💰 **Payment Status - {crypto_name}**
+
+**Amount:** {subscription.payment_amount_crypto:.8f} {subscription.payment_currency_crypto}
+**Address:** `{subscription.payment_address}`
+**Status:** {subscription.status.title()}
+
+⏳ Waiting for blockchain confirmation...
+This usually takes 1-3 confirmations (5-30 minutes).
+
+**Order ID:** `{subscription.id}`
+            """
+            
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+            keyboard = [
+                [InlineKeyboardButton("🔄 Refresh Status", callback_data=f"check_payment_{subscription.id}")],
+                [InlineKeyboardButton("🔙 Back", callback_data="subscription")]
+            ]
+            
+            await update.callback_query.edit_message_text(
+                status_text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Error checking payment status: {e}")
+            await update.callback_query.edit_message_text(
+                "❌ Error checking payment status.",
                 reply_markup=self.keyboards.subscription_menu(False, True)
             )
     
