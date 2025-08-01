@@ -1,5 +1,5 @@
 """
-File processing service for handling email lists
+File processing service for handling email and phone lists
 """
 import os
 import tempfile
@@ -37,32 +37,89 @@ class FileProcessor:
         except Exception as e:
             return False, f"Cannot read file: {str(e)}"
     
-    def process_uploaded_file(self, file_path: str) -> Tuple[List[str], Dict[str, any]]:
-        """Process uploaded file and extract emails"""
+    def process_uploaded_file(self, file_path: str, validation_type: str = 'email') -> Tuple[List[str], Dict[str, any]]:
+        """Process uploaded file and extract emails or phone numbers"""
         try:
-            emails = read_emails_from_file(file_path)
+            if validation_type == 'email':
+                items = read_emails_from_file(file_path)
+            else:
+                # Read phone numbers from file
+                items = self._read_phones_from_file(file_path)
             
             # Remove duplicates while preserving order
-            unique_emails = []
+            unique_items = []
             seen = set()
-            for email in emails:
-                if email.lower() not in seen:
-                    unique_emails.append(email)
-                    seen.add(email.lower())
+            for item in items:
+                item_lower = item.lower() if validation_type == 'email' else item
+                if item_lower not in seen:
+                    unique_items.append(item)
+                    seen.add(item_lower)
             
             # Get file info
             file_info = {
-                'original_count': len(emails),
-                'unique_count': len(unique_emails),
-                'duplicates_removed': len(emails) - len(unique_emails),
+                'original_count': len(items),
+                'unique_count': len(unique_items),
+                'duplicates_removed': len(items) - len(unique_items),
                 'file_size': os.path.getsize(file_path),
                 'file_extension': os.path.splitext(file_path)[1].lower()
             }
             
-            return unique_emails, file_info
+            return unique_items, file_info
             
         except Exception as e:
             raise Exception(f"Failed to process file: {str(e)}")
+    
+    def _read_phones_from_file(self, file_path: str) -> List[str]:
+        """Read phone numbers from various file formats"""
+        phones = []
+        file_ext = os.path.splitext(file_path)[1].lower()
+        
+        try:
+            if file_ext == '.csv':
+                # Try to read CSV with pandas
+                df = pd.read_csv(file_path)
+                # Look for phone columns
+                phone_columns = [col for col in df.columns if 'phone' in col.lower() or 'mobile' in col.lower() or 'cell' in col.lower()]
+                
+                if phone_columns:
+                    # Use first phone column found
+                    phones = df[phone_columns[0]].dropna().astype(str).tolist()
+                else:
+                    # Try first column
+                    phones = df.iloc[:, 0].dropna().astype(str).tolist()
+                    
+            elif file_ext in ['.xlsx', '.xls']:
+                # Read Excel file
+                df = pd.read_excel(file_path)
+                # Look for phone columns
+                phone_columns = [col for col in df.columns if 'phone' in col.lower() or 'mobile' in col.lower() or 'cell' in col.lower()]
+                
+                if phone_columns:
+                    phones = df[phone_columns[0]].dropna().astype(str).tolist()
+                else:
+                    # Try first column
+                    phones = df.iloc[:, 0].dropna().astype(str).tolist()
+                    
+            else:
+                # Read as text file
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    # Split by newlines and filter empty lines
+                    lines = [line.strip() for line in content.splitlines() if line.strip()]
+                    phones = lines
+            
+            # Clean phone numbers (basic cleaning)
+            cleaned_phones = []
+            for phone in phones:
+                # Remove common non-phone characters but keep + for international
+                phone_str = str(phone).strip()
+                if phone_str and len(phone_str) >= 7:  # Minimum viable phone length
+                    cleaned_phones.append(phone_str)
+            
+            return cleaned_phones
+            
+        except Exception as e:
+            raise Exception(f"Error reading phone numbers: {str(e)}")
     
     def create_temp_file(self, file_content: bytes, extension: str) -> str:
         """Create temporary file from content"""

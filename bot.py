@@ -161,6 +161,8 @@ class EmailValidatorBot:
         
         if user_data.get('waiting_for_emails'):
             await self.validation_handler.handle_email_input(update, context)
+        elif user_data.get('waiting_for_phones'):
+            await self.validation_handler.handle_phone_input(update, context)
         elif user_data.get('waiting_for_transaction'):
             await self.subscription_handler.handle_transaction_hash(update, context)
         else:

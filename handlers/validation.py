@@ -15,6 +15,7 @@ from database import SessionLocal
 from models import User, ValidationJob, ValidationResult
 from keyboards import Keyboards
 from email_validator import EmailValidator, ValidationResult as EmailValidationResult
+from phone_validator import PhoneValidator, PhoneValidationResult
 from file_processor import FileProcessor
 from utils import create_progress_bar, format_duration, format_file_size
 from config import MAX_FILE_SIZE_MB
@@ -25,6 +26,7 @@ class ValidationHandler:
     def __init__(self):
         self.keyboards = Keyboards()
         self.email_validator = EmailValidator()
+        self.phone_validator = PhoneValidator()
         self.file_processor = FileProcessor()
     
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -37,13 +39,23 @@ class ValidationHandler:
             user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
             
             if data == 'validate_emails':
-                await self.show_validation_menu(update, context, user)
+                await self.show_validation_menu(update, context, user, 'email')
+            
+            elif data == 'validate_phones':
+                await self.show_validation_menu(update, context, user, 'phone')
             
             elif data == 'upload_file':
-                await self.show_file_upload_options(update, context)
+                await self.show_file_upload_options(update, context, 'email')
+                
+            elif data.startswith('upload_file_'):
+                validation_type = data.split('_')[-1]
+                await self.show_file_upload_options(update, context, validation_type)
             
             elif data == 'enter_emails':
                 await self.start_email_input(update, context)
+                
+            elif data == 'enter_phones':
+                await self.start_phone_input(update, context)
             
             elif data == 'recent_jobs':
                 await self.show_recent_jobs(update, context, user, db)
@@ -62,9 +74,12 @@ class ValidationHandler:
             
             elif data == 'start_validation':
                 await self.start_validation_from_input(update, context)
+                
+            elif data == 'start_phone_validation':
+                await self.start_phone_validation_from_input(update, context)
     
-    async def show_validation_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User):
-        """Show email validation options"""
+    async def show_validation_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, validation_type: str = 'email'):
+        """Show validation options for email or phone"""
         with SessionLocal() as db:
             user = db.query(User).filter(User.telegram_id == str(user.telegram_id)).first()
             
@@ -76,48 +91,73 @@ class ValidationHandler:
                 remaining = TRIAL_EMAIL_LIMIT - user.trial_emails_used
                 capacity_info = f"🆓 **Trial:** {remaining} validations remaining"
             
-            menu_text = f"""
-🎯 **Email Validation**
-
-{capacity_info}
-
-**How would you like to validate emails?**
-
-📁 **Upload File** - CSV, Excel, or TXT files
-✍️ **Enter Emails** - Type or paste email addresses
-📊 **Recent Jobs** - View your validation history
-
-**Supported formats:**
+            if validation_type == 'email':
+                title = "📧 **Email Validation**"
+                item_name = "emails"
+                format_info = """**Supported formats:**
 • CSV with email column
 • Excel files (.xlsx, .xls)
 • Text files (one email per line)
-• Max file size: {MAX_FILE_SIZE_MB}MB
+• Max file size: {MAX_FILE_SIZE_MB}MB"""
+            else:
+                title = "📱 **Phone Number Validation**"
+                item_name = "phone numbers"
+                format_info = """**Supported formats:**
+• CSV with phone column
+• Excel files (.xlsx, .xls)
+• Text files (one number per line)
+• International format supported (+1234567890)
+• Max file size: {MAX_FILE_SIZE_MB}MB"""
+            
+            menu_text = f"""
+{title}
+
+{capacity_info}
+
+**How would you like to validate {item_name}?**
+
+📁 **Upload File** - CSV, Excel, or TXT files
+✍️ **Enter {item_name.title()}** - Type or paste {item_name}
+📊 **Recent Jobs** - View your validation history
+
+{format_info}
             """
             
             query = update.callback_query
             await query.edit_message_text(
                 menu_text,
-                reply_markup=self.keyboards.validation_menu(),
+                reply_markup=self.keyboards.validation_menu(validation_type),
                 parse_mode='Markdown'
             )
     
-    async def show_file_upload_options(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def show_file_upload_options(self, update: Update, context: ContextTypes.DEFAULT_TYPE, validation_type: str = 'email'):
         """Show file upload format options"""
-        upload_text = """
+        context.user_data['validation_type'] = validation_type
+        
+        if validation_type == 'email':
+            item_name = "email addresses"
+            column_info = "• Must have 'email' column or emails in first column"
+            line_format = "• One email address per line"
+        else:
+            item_name = "phone numbers"
+            column_info = "• Must have 'phone' or 'phone_number' column or numbers in first column"
+            line_format = "• One phone number per line (international format supported)"
+            
+        upload_text = f"""
 📁 **File Upload**
 
-Choose your file format:
+Choose your file format for {item_name}:
 
 **📄 CSV File**
-• Must have 'email' column or emails in first column
+{column_info}
 • UTF-8 encoding recommended
 
 **📊 Excel File**
 • .xlsx or .xls formats supported
-• Emails in 'email' column or first column
+{column_info}
 
 **📝 Text File**
-• One email address per line
+{line_format}
 • Plain text format (.txt)
 
 Select your file type and then send the file:
@@ -284,8 +324,257 @@ When you're done, click "Start Validation" below or type /done.
             
             await self.process_email_validation(message, user, emails, db, "Manual Input")
     
+    async def start_phone_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start manual phone number input process"""
+        context.user_data['waiting_for_phones'] = True
+        context.user_data['collected_phones'] = []
+        
+        input_text = """
+📱 **Enter Phone Numbers**
+
+Send me phone numbers to validate. You can:
+
+• Type one number per line
+• Include country code (+1234567890) or local format
+• Send multiple messages
+
+**Examples:**
++1 555-123-4567
++44 20 7946 0958
++91 98765 43210
+(555) 123-4567
+
+When you're done, click "Start Validation" below.
+        """
+        
+        query = update.callback_query
+        await query.edit_message_text(
+            input_text,
+            reply_markup=self.keyboards.phone_input_menu(),
+            parse_mode='Markdown'
+        )
+    
+    async def handle_phone_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle phone number input from user"""
+        text = update.message.text.strip()
+        
+        # Check for done command
+        if text.lower() == '/done':
+            await self.start_phone_validation_from_input(update, context)
+            return
+        
+        # Extract phone numbers from text
+        found_phones = self.phone_validator.extract_phone_numbers(text)
+        
+        if not found_phones:
+            await update.message.reply_text(
+                "❌ No valid phone numbers found. Please enter valid phone numbers or click 'Start Validation' when done.",
+                reply_markup=self.keyboards.phone_input_menu()
+            )
+            return
+        
+        # Add to collected phones
+        if 'collected_phones' not in context.user_data:
+            context.user_data['collected_phones'] = []
+        
+        context.user_data['collected_phones'].extend(found_phones)
+        
+        # Remove duplicates
+        unique_phones = list(dict.fromkeys(context.user_data['collected_phones']))
+        context.user_data['collected_phones'] = unique_phones
+        
+        await update.message.reply_text(
+            f"✅ Added {len(found_phones)} phone number(s). Total collected: {len(unique_phones)}\n\n"
+            "Send more numbers or click 'Start Validation' below.",
+            reply_markup=self.keyboards.phone_input_menu()
+        )
+    
+    async def start_phone_validation_from_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start validation from manually entered phone numbers"""
+        phones = context.user_data.get('collected_phones', [])
+        
+        if not phones:
+            if update.callback_query:
+                await update.callback_query.edit_message_text(
+                    "❌ No phone numbers entered. Please enter some numbers first.",
+                    reply_markup=self.keyboards.phone_input_menu()
+                )
+            else:
+                await update.message.reply_text(
+                    "❌ No phone numbers entered. Please enter some numbers first.",
+                    reply_markup=self.keyboards.phone_input_menu()
+                )
+            return
+        
+        # Clear input state
+        context.user_data['waiting_for_phones'] = False
+        context.user_data['collected_phones'] = []
+        
+        # Get user
+        telegram_user = update.effective_user
+        with SessionLocal() as db:
+            user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
+            
+            if not user:
+                message = "❌ User not found. Please start with /start"
+                if update.callback_query:
+                    await update.callback_query.edit_message_text(message, reply_markup=self.keyboards.main_menu())
+                else:
+                    await update.message.reply_text(message, reply_markup=self.keyboards.main_menu())
+                return
+            
+            # Check credits
+            if not user.has_active_subscription():
+                from config import TRIAL_EMAIL_LIMIT
+                remaining = TRIAL_EMAIL_LIMIT - user.trial_emails_used
+                if len(phones) > remaining:
+                    message = (f"❌ You entered {len(phones)} phone numbers, but only have {remaining} trial validations remaining.\n\n"
+                              "Please subscribe for unlimited access.")
+                    if update.callback_query:
+                        await update.callback_query.edit_message_text(message, reply_markup=self.keyboards.subscription_prompt())
+                    else:
+                        await update.message.reply_text(message, reply_markup=self.keyboards.subscription_prompt())
+                    return
+            
+            # Start validation
+            message_text = f"🔄 Starting validation of {len(phones)} phone numbers..."
+            if update.callback_query:
+                message = await update.callback_query.edit_message_text(message_text)
+            else:
+                message = await update.message.reply_text(message_text)
+            
+            await self.process_phone_validation(message, user, phones, db, "Manual Input")
+    
+    async def process_phone_validation(self, message, user: User, phone_numbers: list, db: Session, filename: str = None):
+        """Process phone number validation and update progress"""
+        from rate_limiter import validation_queue
+        
+        # Acquire validation slot
+        await validation_queue.acquire()
+        
+        try:
+            # Create validation job
+            job = ValidationJob(
+                user_id=user.id,
+                validation_type='phone',
+                total_items=len(phone_numbers),
+                filename=filename or "Manual Input",
+                status="processing"
+            )
+            db.add(job)
+            db.commit()
+            db.refresh(job)
+            
+            # Update message
+            await message.edit_text(
+                f"🔄 Validating {len(phone_numbers)} phone numbers...\n"
+                f"Progress: 0/{len(phone_numbers)} (0%)",
+                reply_markup=None
+            )
+            
+            # Process phone numbers in batches
+            batch_size = 50
+            validated_count = 0
+            valid_count = 0
+            start_time = time.time()
+            
+            for i in range(0, len(phone_numbers), batch_size):
+                batch = phone_numbers[i:i + batch_size]
+                
+                # Validate batch
+                batch_results = await self.phone_validator.validate_batch_async(batch)
+                
+                # Save results to database
+                for result in batch_results:
+                    validation_result = ValidationResult(
+                        job_id=job.id,
+                        validation_type='phone',
+                        phone_number=result.number,
+                        is_valid=result.is_valid,
+                        formatted_international=result.formatted_international,
+                        formatted_national=result.formatted_national,
+                        country_code=result.country_code,
+                        country_name=result.country_name,
+                        carrier_name=result.carrier_name,
+                        number_type=result.number_type,
+                        timezones=json.dumps(result.timezones) if result.timezones else None,
+                        error_message=result.error_message,
+                        validation_time=0.1  # Phone validation is fast
+                    )
+                    db.add(validation_result)
+                    
+                    if result.is_valid:
+                        valid_count += 1
+                
+                validated_count += len(batch_results)
+                
+                # Update progress
+                progress = int((validated_count / len(phone_numbers)) * 100)
+                elapsed = time.time() - start_time
+                rate = validated_count / elapsed if elapsed > 0 else 0
+                eta = (len(phone_numbers) - validated_count) / rate if rate > 0 else 0
+                
+                await message.edit_text(
+                    f"📱 Validating phone numbers...\n\n"
+                    f"Progress: {validated_count}/{len(phone_numbers)} ({progress}%)\n"
+                    f"{create_progress_bar(progress)}\n\n"
+                    f"⚡ Speed: {rate:.1f} numbers/second\n"
+                    f"⏱️ ETA: {format_duration(eta)}"
+                )
+                
+                # Commit batch results
+                db.commit()
+            
+            # Update job completion
+            job.status = "completed"
+            job.completed_at = datetime.now()
+            job.validated_items = len(phone_numbers)
+            job.valid_items = valid_count
+            job.invalid_items = len(phone_numbers) - valid_count
+            db.commit()
+            
+            # Update user usage
+            if not user.has_active_subscription():
+                user.trial_emails_used += len(phone_numbers)
+                db.commit()
+            
+            # Show final results
+            invalid_count = len(phone_numbers) - valid_count
+            final_text = f"""✅ Phone Validation Complete!
+
+📊 Results Summary:
+• Total numbers: {len(phone_numbers)}
+• Valid: {valid_count}
+• Invalid: {invalid_count}
+• Success Rate: {(valid_count/len(phone_numbers)*100):.1f}%
+
+📁 File: {filename or 'Manual Input'}
+⏱️ Completed: {datetime.now().strftime('%H:%M')}"""
+            
+            await message.edit_text(
+                final_text,
+                reply_markup=self.keyboards.validation_results(job.id)
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in phone validation process: {e}")
+            if 'job' in locals():
+                job.status = "failed"
+                try:
+                    db.commit()
+                except:
+                    db.rollback()
+            
+            await message.edit_text(
+                "❌ Validation failed. Please try again or contact support.",
+                reply_markup=self.keyboards.main_menu()
+            )
+        finally:
+            # Always release validation slot
+            validation_queue.release()
+    
     async def handle_file_upload(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle file upload for email validation"""
+        """Handle file upload for email or phone validation"""
         document = update.message.document
         telegram_user = update.effective_user
         
@@ -330,12 +619,20 @@ When you're done, click "Start Validation" below or type /done.
                 file_path = f"/tmp/{document.file_name}"
                 await file.download_to_drive(file_path)
                 
-                # Process file
-                emails, file_info = self.file_processor.process_uploaded_file(file_path)
+                # Determine validation type from context
+                validation_type = context.user_data.get('validation_type', 'email')
                 
-                if not emails:
+                # Process file based on validation type
+                if validation_type == 'email':
+                    items, file_info = self.file_processor.process_uploaded_file(file_path, 'email')
+                    item_name = "emails"
+                else:
+                    items, file_info = self.file_processor.process_uploaded_file(file_path, 'phone')
+                    item_name = "phone numbers"
+                
+                if not items:
                     await processing_msg.edit_text(
-                        "❌ No valid emails found in the file.",
+                        f"❌ No valid {item_name} found in the file.",
                         reply_markup=self.keyboards.main_menu()
                     )
                     return
@@ -344,16 +641,19 @@ When you're done, click "Start Validation" below or type /done.
                 if not user.has_active_subscription():
                     from config import TRIAL_EMAIL_LIMIT
                     remaining = TRIAL_EMAIL_LIMIT - user.trial_emails_used
-                    if len(emails) > remaining:
+                    if len(items) > remaining:
                         await processing_msg.edit_text(
-                            f"❌ File contains {len(emails)} emails, but you only have {remaining} trial validations remaining.\n\n"
+                            f"❌ File contains {len(items)} {item_name}, but you only have {remaining} trial validations remaining.\n\n"
                             "Please subscribe for unlimited access or upload a smaller file.",
                             reply_markup=self.keyboards.subscription_prompt()
                         )
                         return
                 
                 # Start validation
-                await self.process_email_validation(processing_msg, user, emails, db, document.file_name)
+                if validation_type == 'email':
+                    await self.process_email_validation(processing_msg, user, items, db, document.file_name)
+                else:
+                    await self.process_phone_validation(processing_msg, user, items, db, document.file_name)
                 
                 # Clean up file
                 if os.path.exists(file_path):

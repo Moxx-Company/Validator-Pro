@@ -1,8 +1,16 @@
-# Email Validator Telegram Bot
+# Email & Phone Validator Telegram Bot
 
 ## Overview
 
-This is a Telegram bot that provides bulk email validation services with subscription-based pricing. The bot validates emails through DNS, MX record, and SMTP connectivity checks, processes various file formats (CSV, Excel, TXT), and offers a freemium model with trial usage and paid subscriptions. Users can upload email lists, receive detailed validation reports, and manage their subscriptions through an intuitive Telegram interface.
+This is a comprehensive Telegram bot that provides both bulk email and phone number validation services with subscription-based pricing. The bot validates emails through DNS, MX record, and SMTP connectivity checks, and validates phone numbers using Google's libphonenumber library with carrier detection, country identification, and format validation. It processes various file formats (CSV, Excel, TXT), and offers a freemium model with trial usage and paid subscriptions. Users can upload email/phone lists, receive detailed validation reports, and manage their subscriptions through an intuitive Telegram interface.
+
+## Recent Changes (August 1, 2025)
+- **Major Feature Expansion**: Successfully integrated phone number validation alongside email validation
+- **Database Schema Updated**: Added support for both validation types with new fields (validation_type, phone-specific results)
+- **UI Enhancement**: New validation type selection menu - users can now choose between Email Validation and Phone Validation
+- **Fixed Critical Bug**: "Enter email address" functionality now works correctly without "Unknown command" errors
+- **Phone Validation Features**: International format support, carrier detection, country identification, number type classification
+- **Performance Maintained**: Same enterprise-scale optimizations apply to both email and phone validation
 
 ## User Preferences
 
@@ -30,6 +38,15 @@ Preferred communication style: Simple, everyday language.
 - **Real-time Progress**: Live speed tracking, ETA calculation, and batch-by-batch progress updates
 - **Robust Error Handling**: Individual email timeout handling, batch failure recovery, and comprehensive error logging
 - **Enterprise Scale**: Supports 1000+ concurrent users with rate limiting and queue management
+
+### Phone Number Validation Engine
+- **Google's libphonenumber**: Industry-standard phone number parsing and validation library
+- **Comprehensive Validation**: Format validation, country detection, carrier identification, number type classification
+- **International Support**: Handles phone numbers from all countries with proper formatting
+- **Smart Extraction**: Extracts phone numbers from text using pattern matching and phonenumbers library
+- **Batch Processing**: Concurrent validation with thread pool executor for high performance
+- **Rich Metadata**: Returns formatted numbers (international/national), country info, carrier name, timezones
+- **Error Handling**: Graceful handling of invalid formats with detailed error messages
 
 ### File Processing System
 - **Multi-format Support**: Handles CSV, Excel, and text file formats

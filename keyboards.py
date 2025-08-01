@@ -8,7 +8,8 @@ class Keyboards:
     def main_menu():
         """Main menu keyboard"""
         keyboard = [
-            [InlineKeyboardButton("🎯 Validate Emails", callback_data="validate_emails")],
+            [InlineKeyboardButton("📧 Validate Emails", callback_data="validate_emails")],
+            [InlineKeyboardButton("📱 Validate Phone Numbers", callback_data="validate_phones")],
             [InlineKeyboardButton("📊 Dashboard", callback_data="dashboard")],
             [InlineKeyboardButton("💎 Subscription", callback_data="subscription")],
             [InlineKeyboardButton("❓ Help", callback_data="help")]
@@ -59,12 +60,17 @@ class Keyboards:
         return InlineKeyboardMarkup(keyboard)
     
     @staticmethod
-    def validation_menu():
-        """Email validation options"""
+    def validation_menu(validation_type='email'):
+        """Validation options for email or phone"""
+        item_name = "Emails" if validation_type == 'email' else "Phone Numbers"
+        enter_callback = "enter_emails" if validation_type == 'email' else "enter_phones"
+        upload_callback = f"upload_file_{validation_type}"
+        recent_callback = f"recent_jobs_{validation_type}"
+        
         keyboard = [
-            [InlineKeyboardButton("📁 Upload File", callback_data="upload_file")],
-            [InlineKeyboardButton("✍️ Enter Emails", callback_data="enter_emails")],
-            [InlineKeyboardButton("📊 Recent Jobs", callback_data="recent_jobs")],
+            [InlineKeyboardButton("📁 Upload File", callback_data=upload_callback)],
+            [InlineKeyboardButton(f"✍️ Enter {item_name}", callback_data=enter_callback)],
+            [InlineKeyboardButton("📊 Recent Jobs", callback_data=recent_callback)],
             [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
         ]
         return InlineKeyboardMarkup(keyboard)
@@ -178,6 +184,15 @@ class Keyboards:
         """Menu for email input mode"""
         keyboard = [
             [InlineKeyboardButton("✅ Start Validation", callback_data="start_validation")],
+            [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
+        ]
+        return InlineKeyboardMarkup(keyboard)
+    
+    @staticmethod
+    def phone_input_menu():
+        """Menu for phone input mode"""
+        keyboard = [
+            [InlineKeyboardButton("✅ Start Validation", callback_data="start_phone_validation")],
             [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
         ]
         return InlineKeyboardMarkup(keyboard)
