@@ -39,17 +39,27 @@ class ValidationHandler:
             user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
             
             if data == 'validate_emails':
+                if not user:
+                    await query.edit_message_text("❌ User not found. Please start with /start")
+                    return
                 await self.show_validation_menu(update, context, user, 'email')
             
             elif data == 'validate_phones':
+                if not user:
+                    await query.edit_message_text("❌ User not found. Please start with /start")  
+                    return
                 await self.show_validation_menu(update, context, user, 'phone')
             
             elif data == 'upload_file':
                 await self.show_file_upload_options(update, context, 'email')
                 
             elif data.startswith('upload_file_'):
-                validation_type = data.split('_')[-1]
+                validation_type = data.split('_')[-1]  # emails or phones
                 await self.show_file_upload_options(update, context, validation_type)
+            
+            elif data.startswith('recent_jobs_'):
+                validation_type = data.split('_')[-1]  # emails or phones  
+                await self.show_recent_jobs(update, context, user, db)
             
             elif data == 'enter_emails':
                 await self.start_email_input(update, context)
@@ -85,49 +95,45 @@ class ValidationHandler:
             
             # Check user's validation capacity
             if user.has_active_subscription():
-                capacity_info = "✅ **Unlimited validations**"
+                capacity_info = "✅ Unlimited validations"
             else:
-                from config import TRIAL_EMAIL_LIMIT
-                remaining = TRIAL_EMAIL_LIMIT - user.trial_emails_used
-                capacity_info = f"🆓 **Trial:** {remaining} validations remaining"
+                remaining = user.get_trial_remaining()
+                capacity_info = f"🆓 Trial: {remaining} validations remaining"
             
             if validation_type == 'email':
-                title = "📧 **Email Validation**"
+                title = "📧 Email Validation"
                 item_name = "emails"
-                format_info = """**Supported formats:**
+                format_info = """Supported formats:
 • CSV with email column
 • Excel files (.xlsx, .xls)
 • Text files (one email per line)
-• Max file size: {MAX_FILE_SIZE_MB}MB"""
+• Max file size: 10MB"""
             else:
-                title = "📱 **Phone Number Validation**"
+                title = "📱 Phone Number Validation"
                 item_name = "phone numbers"
-                format_info = """**Supported formats:**
+                format_info = """Supported formats:
 • CSV with phone column
 • Excel files (.xlsx, .xls)
 • Text files (one number per line)
-• International format supported (+1234567890)
-• Max file size: {MAX_FILE_SIZE_MB}MB"""
+• International format supported
+• Max file size: 10MB"""
             
-            menu_text = f"""
-{title}
+            menu_text = f"""{title}
 
 {capacity_info}
 
-**How would you like to validate {item_name}?**
+How would you like to validate {item_name}?
 
-📁 **Upload File** - CSV, Excel, or TXT files
-✍️ **Enter {item_name.title()}** - Type or paste {item_name}
-📊 **Recent Jobs** - View your validation history
+📁 Upload File - CSV, Excel, or TXT files
+✍️ Enter {item_name.title()} - Type or paste {item_name}
+📊 Recent Jobs - View your validation history
 
-{format_info}
-            """
+{format_info}"""
             
             query = update.callback_query
             await query.edit_message_text(
                 menu_text,
-                reply_markup=self.keyboards.validation_menu(validation_type),
-                parse_mode='Markdown'
+                reply_markup=self.keyboards.validation_menu(validation_type)
             )
     
     async def show_file_upload_options(self, update: Update, context: ContextTypes.DEFAULT_TYPE, validation_type: str = 'email'):
@@ -143,31 +149,28 @@ class ValidationHandler:
             column_info = "• Must have 'phone' or 'phone_number' column or numbers in first column"
             line_format = "• One phone number per line (international format supported)"
             
-        upload_text = f"""
-📁 **File Upload**
+        upload_text = f"""📁 File Upload
 
 Choose your file format for {item_name}:
 
-**📄 CSV File**
+📄 CSV File
 {column_info}
 • UTF-8 encoding recommended
 
-**📊 Excel File**
+📊 Excel File
 • .xlsx or .xls formats supported
 {column_info}
 
-**📝 Text File**
+📝 Text File
 {line_format}
 • Plain text format (.txt)
 
-Select your file type and then send the file:
-        """
+Select your file type and then send the file:"""
         
         query = update.callback_query
         await query.edit_message_text(
             upload_text,
-            reply_markup=self.keyboards.file_upload_options(),
-            parse_mode='Markdown'
+            reply_markup=self.keyboards.file_upload_options()
         )
     
     async def prompt_file_upload(self, update: Update, context: ContextTypes.DEFAULT_TYPE, file_type: str):
