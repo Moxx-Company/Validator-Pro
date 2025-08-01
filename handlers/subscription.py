@@ -27,7 +27,10 @@ class SubscriptionHandler:
             user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
             
             if not user:
-                await update.message.reply_text("Please start the bot first with /start")
+                if update.message:
+                    await update.message.reply_text("Please start the bot first with /start")
+                else:
+                    await update.callback_query.edit_message_text("Please start the bot first with /start")
                 return
             
             has_active = user.has_active_subscription()
@@ -73,7 +76,7 @@ Upgrade for unlimited access!
             if not has_active:
                 emails_used = user.trial_emails_used or 0
                 phones_used = user.trial_phones_used or 0
-                trial_started = (emails_used + phones_used) > 0
+                trial_started = bool((emails_used + phones_used) > 0)
             
             if update.message:
                 await update.message.reply_text(
@@ -97,6 +100,10 @@ Upgrade for unlimited access!
         
         with SessionLocal() as db:
             user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
+            
+            if not user:
+                await query.edit_message_text("Please start the bot first with /start")
+                return
             
             if data == 'subscription':
                 await self.show_subscription_menu(update, context)
@@ -126,8 +133,7 @@ Upgrade for unlimited access!
                 await self.initiate_payment(update, context, user, payment_method, db)
             
             elif data.startswith('confirm_payment_'):
-                subscription_id = data.split('_')[2]
-                await self.confirm_payment(update, context, user, subscription_id, db)
+                await self.confirm_demo_payment(update, context, user, db)
     
     async def show_payment_methods(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show payment method selection"""
@@ -165,43 +171,41 @@ Select your preferred payment method:
     async def initiate_payment(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, payment_method: str, db: Session):
         """Initiate payment process"""
         try:
-            subscription_manager = SubscriptionManager(db)
-            subscription = subscription_manager.create_subscription(user, payment_method)
-            
-            payment_info = subscription_manager.get_payment_instructions(subscription)
-            
-            if 'error' in payment_info:
+            # Simple mock payment flow
+            from config import SUPPORTED_CRYPTOS
+            if payment_method not in SUPPORTED_CRYPTOS:
                 await update.callback_query.edit_message_text(
-                    f"❌ Error: {payment_info['error']}",
+                    f"❌ Unsupported payment method: {payment_method}",
                     reply_markup=self.keyboards.back_to_menu()
                 )
                 return
             
-            # Store subscription ID in user context for later confirmation
-            context.user_data['pending_subscription'] = subscription.id
-            context.user_data['waiting_for_transaction'] = True
-            
             payment_text = f"""
-{payment_info['instructions']}
+💰 **Payment Instructions - {SUPPORTED_CRYPTOS[payment_method]}**
 
-**Order ID:** `{subscription.id}`
+**Amount:** $9.99 USD
+**Payment Method:** {payment_method.upper()}
 
-After sending payment, please send me the transaction hash/ID for verification.
+🚧 **Demo Mode Notice**
+This is a demonstration bot. Real payment processing is not active.
 
-⚠️ **Important:**
-• Send only the exact amount
-• Double-check the address
-• Transaction hash is required for activation
+To test subscription features:
+• Click "I've Sent Payment" below
+• The system will simulate payment confirmation
+• Your subscription will be activated for testing
+
+**Demo Order ID:** `demo_{user.id}`
             """
             
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
             confirmation_keyboard = [
-                [self.keyboards.InlineKeyboardButton("✅ I've Sent Payment", callback_data=f"confirm_payment_{subscription.id}")],
-                [self.keyboards.InlineKeyboardButton("🔙 Cancel", callback_data="subscription")]
+                [InlineKeyboardButton("✅ I've Sent Payment", callback_data=f"confirm_payment_demo_{user.id}")],
+                [InlineKeyboardButton("🔙 Cancel", callback_data="subscription")]
             ]
             
             await update.callback_query.edit_message_text(
                 payment_text,
-                reply_markup=self.keyboards.InlineKeyboardMarkup(confirmation_keyboard),
+                reply_markup=InlineKeyboardMarkup(confirmation_keyboard),
                 parse_mode='Markdown'
             )
             
@@ -209,7 +213,52 @@ After sending payment, please send me the transaction hash/ID for verification.
             logger.error(f"Error initiating payment: {e}")
             await update.callback_query.edit_message_text(
                 "❌ Error creating payment. Please try again.",
-                reply_markup=self.keyboards.subscription_menu(False)
+                reply_markup=self.keyboards.subscription_menu(False, True)
+            )
+    
+    async def confirm_demo_payment(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session):
+        """Handle demo payment confirmation"""
+        try:
+            from datetime import datetime, timedelta
+            
+            # Create demo subscription
+            subscription = Subscription(
+                user_id=user.id,
+                status='active',
+                amount_usd=9.99,
+                currency='USD',
+                payment_currency_crypto='DEMO',
+                activated_at=datetime.utcnow(),
+                expires_at=datetime.utcnow() + timedelta(days=30),
+                created_at=datetime.utcnow()
+            )
+            
+            db.add(subscription)
+            db.commit()
+            
+            confirmation_text = """
+✅ **Demo Payment Confirmed!**
+
+Your subscription has been activated for testing purposes.
+
+**Status:** Active
+**Duration:** 30 days
+**Features:** Unlimited email & phone validation
+
+Thank you for testing the Email & Phone Validator Pro!
+            """
+            
+            await update.callback_query.edit_message_text(
+                confirmation_text,
+                reply_markup=self.keyboards.subscription_menu(True),
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Error confirming demo payment: {e}")
+            await update.callback_query.edit_message_text(
+                "❌ Error processing payment. Please try again.",
+                reply_markup=self.keyboards.subscription_menu(False, True)
             )
     
     async def handle_transaction_hash(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -356,45 +405,37 @@ Use the "🎯 Validate Emails" button to get started!
     
     async def show_subscription_info(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show detailed subscription information"""
-        info_text = f"""
-{SUBSCRIPTION_INFO}
+        info_text = """
+💎 **Email & Phone Validator Pro**
 
-**Why Subscribe?**
+**Benefits:**
+✅ Unlimited email & phone validation
+✅ Bulk CSV/Excel processing  
+✅ Advanced analytics & reports
+✅ Priority support
 
-🚀 **Unlimited Validations**
-No more counting emails - validate as many as you need
+**Pricing:** $9.99/month (30 days)
+**Payment:** Cryptocurrency only
+**Trial:** 20,000 free validations
 
-📊 **Advanced Features**
-• Bulk file processing (CSV, Excel, TXT)
-• Detailed validation reports
-• Usage analytics and statistics
-• Priority email support
-
-⚡ **High Performance**
-• Concurrent processing for speed
-• 95%+ accuracy rate
-• Multiple validation layers
-• Real-time SMTP checks
-
-🔒 **Security & Privacy**
-• Files automatically deleted after 24h
-• No data stored or shared
-• Secure crypto payments
-• Anonymous usage
-
-💰 **Simple Pricing**
-• No setup fees
-• No contracts
-• Auto-expires after 30 days
-• No hidden charges
-
-Ready to upgrade your email validation?
         """
         
-        query = update.callback_query
+        query = update.callback_query  
+        telegram_user = update.effective_user
+        
+        with SessionLocal() as db:
+            user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
+            
+            # Check if trial has been started
+            trial_started = False
+            if user:
+                emails_used = user.trial_emails_used or 0
+                phones_used = user.trial_phones_used or 0
+                trial_started = bool((emails_used + phones_used) > 0)
+        
         await query.edit_message_text(
             info_text,
-            reply_markup=self.keyboards.subscription_menu(False),
+            reply_markup=self.keyboards.subscription_menu(False, trial_started),
             parse_mode='Markdown'
         )
     
