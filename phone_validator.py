@@ -80,7 +80,12 @@ class PhoneValidator:
                     try:
                         parsed = phonenumbers.parse(f"+{phone_number}", None)
                     except:
-                        parsed = phonenumbers.parse(phone_number, 'US')  # Default fallback
+                        # If all parsing attempts fail, return invalid result
+                        return PhoneValidationResult(
+                            number=phone_number,
+                            is_valid=False,
+                            error_message="Cannot parse phone number - invalid format"
+                        )
             
             # Check if valid
             is_valid = phonenumbers.is_valid_number(parsed)
