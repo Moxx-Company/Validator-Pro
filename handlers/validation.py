@@ -169,3 +169,16 @@ Send me email addresses to validate. You can:
 • Send multiple messages
 
 **Example:**
+john@example.com
+jane@test.com
+support@company.org
+
+When you're done, type /validate to start the validation process.
+        """
+        
+        query = update.callback_query
+        await query.edit_message_text(
+            input_text,
+            reply_markup=self.keyboards.back_to_menu(),
+            parse_mode='Markdown'
+        )

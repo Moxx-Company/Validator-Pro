@@ -48,7 +48,7 @@ class EmailValidatorBot:
         app.add_handler(CallbackQueryHandler(self.handle_callback))
         
         # Message handlers
-        app.add_handler(MessageHandler(filters.DOCUMENT, self.handle_document))
+        app.add_handler(MessageHandler(filters.Document.ALL, self.handle_document))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text))
         
         # Error handler
