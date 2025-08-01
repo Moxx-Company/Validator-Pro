@@ -110,6 +110,7 @@ class EmailValidatorBot:
         await query.answer()
         
         data = query.data
+        logger.info(f"Received callback: {data}")
         
         try:
             # Route callbacks to appropriate handlers

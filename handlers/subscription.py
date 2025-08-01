@@ -97,16 +97,13 @@ Upgrade for unlimited access!
         query = update.callback_query
         data = query.data
         telegram_user = update.effective_user
+        logger.info(f"SubscriptionHandler received: {data}")
         
         with SessionLocal() as db:
             user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
             
             if not user:
                 await query.edit_message_text("Please start the bot first with /start")
-                return
-            
-            if data == 'subscribe' or data == 'subscription':
-                await self.show_subscription_menu(update, context)
                 return
             
             if data == 'subscription':
