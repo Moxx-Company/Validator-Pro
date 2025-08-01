@@ -176,15 +176,15 @@ class EmailValidator:
                 return result
             
             # Step 5: Smart SMTP connectivity check
-            # Use selective SMTP checks for optimal speed vs accuracy balance
+            # Always perform SMTP check for accuracy
             result.smtp_connectable = self.smart_smtp_check(mx_records[0] if mx_records else None, email)
             
-            # Final validation decision (prioritize speed over SMTP check)
+            # Final validation decision - require ALL checks including SMTP
             result.is_valid = (
                 result.syntax_valid and 
                 result.domain_exists and 
-                result.mx_record_exists
-                # SMTP check is optional for speed - most emails with valid domain + MX are deliverable
+                result.mx_record_exists and
+                result.smtp_connectable  # SMTP check is REQUIRED for accurate validation
             )
             
             if not result.smtp_connectable:
