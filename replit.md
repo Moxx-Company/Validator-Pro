@@ -17,6 +17,8 @@ This is a comprehensive Telegram bot that provides both bulk email and phone num
 - **Database Integration**: Resolved field mapping errors for phone validation - all functions work correctly
 - **CSV Download Fix**: Fixed CSV download showing email format for phone validation - now shows proper phone columns
 - **Trial Limit Increase**: Expanded trial from 10,000 to 20,000 free validations (combined emails + phones)
+- **Mobile UI Optimization**: Redesigned all keyboards and messages for mobile-first experience with compact buttons and shorter text
+- **Subscription UI Fix**: Fixed "Start Free Trial" button appearing after trial already started
 
 ## User Preferences
 

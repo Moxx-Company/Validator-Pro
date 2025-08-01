@@ -37,15 +37,14 @@ class SubscriptionHandler:
                 days_remaining = active_sub.days_remaining()
                 
                 menu_text = f"""
-💎 **Subscription Management**
+💎 **Subscription**
 
 **Status:** ✅ Active
-**Expires:** {active_sub.expires_at.strftime('%Y-%m-%d %H:%M UTC')}
-**Days Remaining:** {days_remaining}
-**Amount:** ${active_sub.amount_usd}/month
+**Expires:** {active_sub.expires_at.strftime('%m/%d/%Y')}
+**Days left:** {days_remaining}
+**Plan:** ${active_sub.amount_usd}/month
 
-Your subscription will expire automatically.
-No auto-renewal charges.
+Auto-expires, no renewal charges.
                 """
             else:
                 from config import TRIAL_VALIDATION_LIMIT
@@ -58,16 +57,15 @@ No auto-renewal charges.
                 trial_started = total_used > 0
                 
                 menu_text = f"""
-💎 **Subscription Management**
+💎 **Subscription**
 
 **Status:** 🆓 Trial {'Active' if trial_started else 'Available'}
-**Email validations used:** {emails_used}
-**Phone validations used:** {phones_used}
-**Total remaining:** {trial_remaining} free validations
+**Used:** {emails_used} emails, {phones_used} phones
+**Remaining:** {trial_remaining} free validations
 
 {SUBSCRIPTION_INFO}
 
-Upgrade now for unlimited validation!
+Upgrade for unlimited access!
                 """
             
             # Determine if trial has been started

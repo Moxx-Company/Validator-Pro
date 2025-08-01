@@ -42,38 +42,30 @@ RESULTS_EXPIRY_HOURS = 24
 
 # Bot Messages
 WELCOME_MESSAGE = """
-🎯 **Welcome to Email & Phone Validator Pro!**
+🎯 **Email & Phone Validator Pro**
 
-I help you validate bulk email lists and phone numbers with high accuracy.
+Validate bulk lists with high accuracy.
 
 ✅ **Features:**
-• Email validation (DNS, MX, SMTP checks)
-• Phone validation (carrier, country detection)
+• Email validation (DNS, MX, SMTP)
+• Phone validation (carrier, country)
 • Bulk processing (CSV/Excel/TXT)
-• Detailed validation reports
-• Usage statistics & dashboard
+• Detailed reports & analytics
 
-📊 **Subscription:** $9.99/month
-🆓 **Trial:** 20,000 free validations (emails + phones)
+📊 **$9.99/month** | 🆓 **20,000 free trials**
 
-Ready to get started?
+Ready to start?
 """
 
 SUBSCRIPTION_INFO = """
-💎 **Email & Phone Validator Pro Subscription**
+💎 **Pro Subscription - $9.99/month**
 
-**Price:** $9.99/month
-**Duration:** 30 days
-**Payment:** Cryptocurrency
-
-**What's included:**
-✅ Unlimited email validations
-✅ Unlimited phone validations
+**Includes:**
+✅ Unlimited email & phone validation
 ✅ Bulk file processing
 ✅ Advanced deliverability checks
 ✅ Carrier & country detection
-✅ Priority support
-✅ Detailed analytics
+✅ Priority support & analytics
 
-Your subscription auto-expires after 30 days.
+Auto-expires after 30 days.
 """

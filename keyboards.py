@@ -6,12 +6,10 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 class Keyboards:
     @staticmethod
     def main_menu():
-        """Main menu keyboard"""
+        """Main menu keyboard - mobile optimized"""
         keyboard = [
-            [InlineKeyboardButton("📧 Validate Emails", callback_data="validate_emails")],
-            [InlineKeyboardButton("📱 Validate Phone Numbers", callback_data="validate_phones")],
-            [InlineKeyboardButton("📊 Dashboard", callback_data="dashboard")],
-            [InlineKeyboardButton("💎 Subscription", callback_data="subscription")],
+            [InlineKeyboardButton("📧 Email", callback_data="validate_emails"), InlineKeyboardButton("📱 Phone", callback_data="validate_phones")],
+            [InlineKeyboardButton("📊 Stats", callback_data="dashboard"), InlineKeyboardButton("💎 Subscribe", callback_data="subscription")],
             [InlineKeyboardButton("❓ Help", callback_data="help")]
         ]
         return InlineKeyboardMarkup(keyboard)
@@ -27,53 +25,45 @@ class Keyboards:
     
     @staticmethod
     def subscription_menu(has_active=False, trial_started=False):
-        """Subscription management keyboard"""
+        """Subscription management keyboard - mobile optimized"""
         if has_active:
             keyboard = [
-                [InlineKeyboardButton("📊 Subscription Status", callback_data="sub_status")],
-                [InlineKeyboardButton("💳 Payment History", callback_data="payment_history")],
-                [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
+                [InlineKeyboardButton("📊 Status", callback_data="sub_status"), InlineKeyboardButton("💳 History", callback_data="payment_history")],
+                [InlineKeyboardButton("🔙 Back", callback_data="main_menu")]
             ]
         else:
             keyboard = [
-                [InlineKeyboardButton("💎 Subscribe Now", callback_data="subscribe")],
-                [InlineKeyboardButton("ℹ️ Subscription Info", callback_data="sub_info")],
-                [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
+                [InlineKeyboardButton("💎 Subscribe", callback_data="subscribe"), InlineKeyboardButton("ℹ️ Info", callback_data="sub_info")],
+                [InlineKeyboardButton("🔙 Back", callback_data="main_menu")]
             ]
             # Only show "Start Free Trial" if trial hasn't been started yet
             if not trial_started:
-                keyboard.insert(1, [InlineKeyboardButton("🆓 Start Free Trial", callback_data="start_trial")])
+                keyboard.insert(0, [InlineKeyboardButton("🆓 Start Trial", callback_data="start_trial")])
         return InlineKeyboardMarkup(keyboard)
     
     @staticmethod
     def payment_methods():
-        """Payment method selection"""
+        """Payment method selection - mobile optimized"""
         keyboard = [
-            [InlineKeyboardButton("₿ Bitcoin (BTC)", callback_data="pay_btc")],
-            [InlineKeyboardButton("⟠ Ethereum (ETH)", callback_data="pay_eth")],
-            [InlineKeyboardButton("Ł Litecoin (LTC)", callback_data="pay_ltc")],
-            [InlineKeyboardButton("🐕 Dogecoin (DOGE)", callback_data="pay_doge")],
-            [InlineKeyboardButton("💰 USDT (TRC20)", callback_data="pay_usdt_trc20")],
-            [InlineKeyboardButton("💵 USDT (ERC20)", callback_data="pay_usdt_erc20")],
-            [InlineKeyboardButton("⚡ TRON (TRX)", callback_data="pay_trx")],
-            [InlineKeyboardButton("🟡 BNB Smart Chain", callback_data="pay_bsc")],
+            [InlineKeyboardButton("₿ Bitcoin", callback_data="pay_btc"), InlineKeyboardButton("⟠ Ethereum", callback_data="pay_eth")],
+            [InlineKeyboardButton("Ł Litecoin", callback_data="pay_ltc"), InlineKeyboardButton("🐕 Dogecoin", callback_data="pay_doge")],
+            [InlineKeyboardButton("💰 USDT TRC20", callback_data="pay_usdt_trc20"), InlineKeyboardButton("💵 USDT ERC20", callback_data="pay_usdt_erc20")],
+            [InlineKeyboardButton("⚡ TRON", callback_data="pay_trx"), InlineKeyboardButton("🟡 BNB Chain", callback_data="pay_bsc")],
             [InlineKeyboardButton("🔙 Back", callback_data="subscription")]
         ]
         return InlineKeyboardMarkup(keyboard)
     
     @staticmethod
     def validation_menu(validation_type='email'):
-        """Validation options for email or phone"""
-        item_name = "Emails" if validation_type == 'email' else "Phone Numbers"
+        """Validation options for email or phone - mobile optimized"""
+        item_name = "Emails" if validation_type == 'email' else "Phones"
         enter_callback = "enter_emails" if validation_type == 'email' else "enter_phones"
         upload_callback = f"upload_file_{validation_type}"
         recent_callback = f"recent_jobs_{validation_type}"
         
         keyboard = [
-            [InlineKeyboardButton("📁 Upload File", callback_data=upload_callback)],
-            [InlineKeyboardButton(f"✍️ Enter {item_name}", callback_data=enter_callback)],
-            [InlineKeyboardButton("📊 Recent Jobs", callback_data=recent_callback)],
-            [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
+            [InlineKeyboardButton("📁 Upload", callback_data=upload_callback), InlineKeyboardButton(f"✍️ Enter {item_name}", callback_data=enter_callback)],
+            [InlineKeyboardButton("📊 Recent", callback_data=recent_callback), InlineKeyboardButton("🔙 Back", callback_data="main_menu")]
         ]
         return InlineKeyboardMarkup(keyboard)
     
@@ -100,12 +90,10 @@ class Keyboards:
     
     @staticmethod
     def dashboard_menu():
-        """Dashboard navigation"""
+        """Dashboard navigation - mobile optimized"""
         keyboard = [
-            [InlineKeyboardButton("📈 Usage Stats", callback_data="usage_stats")],
-            [InlineKeyboardButton("📋 Recent Activity", callback_data="recent_activity")],
-            [InlineKeyboardButton("💎 Subscription Info", callback_data="sub_status")],
-            [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
+            [InlineKeyboardButton("📈 Usage", callback_data="usage_stats"), InlineKeyboardButton("📋 Activity", callback_data="recent_activity")],
+            [InlineKeyboardButton("💎 Subscription", callback_data="sub_status"), InlineKeyboardButton("🔙 Back", callback_data="main_menu")]
         ]
         return InlineKeyboardMarkup(keyboard)
     
@@ -149,12 +137,10 @@ class Keyboards:
     
     @staticmethod
     def validation_results(job_id):
-        """Actions for completed validation results"""
+        """Actions for completed validation results - mobile optimized"""
         keyboard = [
-            [InlineKeyboardButton("📥 Download CSV", callback_data=f"download_{job_id}")],
-            [InlineKeyboardButton("📊 View Details", callback_data=f"details_{job_id}")],
-            [InlineKeyboardButton("🔁 Validate More", callback_data="validate_emails")],
-            [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
+            [InlineKeyboardButton("📥 Download", callback_data=f"download_{job_id}"), InlineKeyboardButton("📊 Details", callback_data=f"details_{job_id}")],
+            [InlineKeyboardButton("🔁 Validate More", callback_data="validate_emails"), InlineKeyboardButton("🔙 Back", callback_data="main_menu")]
         ]
         return InlineKeyboardMarkup(keyboard)
     
