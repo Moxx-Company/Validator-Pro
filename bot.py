@@ -113,14 +113,15 @@ class EmailValidatorBot:
         
         try:
             # Route callbacks to appropriate handlers
-            if data.startswith(('start_', 'onboard_', 'main_menu')):
+            # IMPORTANT: Check validation callbacks first to avoid start_ conflict
+            if data.startswith(('validate_', 'upload_', 'job_', 'download_', 'details_', 'recent_jobs', 'enter_', 'start_validation', 'start_phone_validation')):
+                await self.validation_handler.handle_callback(update, context)
+            
+            elif data.startswith(('start_', 'onboard_', 'main_menu')):
                 await self.start_handler.handle_callback(update, context)
             
             elif data.startswith(('sub_', 'pay_', 'subscription')):
                 await self.subscription_handler.handle_callback(update, context)
-            
-            elif data.startswith(('validate_', 'upload_', 'job_', 'download_', 'details_', 'recent_jobs', 'enter_', 'start_')):
-                await self.validation_handler.handle_callback(update, context)
             
             elif data.startswith(('dashboard', 'usage_', 'activity_')):
                 await self.dashboard_handler.handle_callback(update, context)

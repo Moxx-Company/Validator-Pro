@@ -353,7 +353,7 @@ When you're done, click "Start Validation" below.
         query = update.callback_query
         await query.edit_message_text(
             input_text,
-            reply_markup=self.keyboards.phone_input_menu(),
+            reply_markup=self.keyboards.main_menu(),  # No start button until numbers are entered
             parse_mode='Markdown'
         )
     
@@ -371,8 +371,8 @@ When you're done, click "Start Validation" below.
         
         if not found_phones:
             await update.message.reply_text(
-                "❌ No valid phone numbers found. Please enter valid phone numbers or click 'Start Validation' when done.",
-                reply_markup=self.keyboards.phone_input_menu()
+                "❌ No valid phone numbers found. Please enter valid phone numbers.",
+                reply_markup=self.keyboards.main_menu()  # No start button for invalid input
             )
             return
         
