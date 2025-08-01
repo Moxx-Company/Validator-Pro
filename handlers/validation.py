@@ -529,7 +529,7 @@ When you're done, click "Start Validation" below.
                     f"Progress: {validated_count}/{len(phone_numbers)} ({progress}%)\n"
                     f"{create_progress_bar(progress)}\n\n"
                     f"⚡ Speed: {rate:.1f} numbers/second\n"
-                    f"⏱️ ETA: {format_duration(eta)}"
+                    f"⏱️ ETA: {format_duration(int(eta))}"
                 )
                 
                 # Commit batch results
