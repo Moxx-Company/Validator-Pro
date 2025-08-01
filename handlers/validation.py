@@ -953,50 +953,89 @@ When you're done, click "Start Validation" below.
             output = io.StringIO()
             writer = csv.writer(output)
             
-            # Write header
-            writer.writerow(['Email', 'Status', 'Valid', 'Reason', 'Domain', 'MX Records', 'SMTP Check'])
+            # Detect validation type
+            is_phone_validation = results[0].validation_type == 'phone' if results else False
             
-            # Add section marker for valid emails
-            if valid_results:
-                writer.writerow(['=== VALID EMAILS ===', '', '', '', '', '', ''])
-                for result in valid_results:
-                    writer.writerow([
-                        result.email,
-                        'Valid',
-                        'Yes',
-                        'Valid email - all checks passed',
-                        result.domain or '',
-                        json.loads(result.mx_records)[0] if result.mx_records else '',
-                        'Yes'
-                    ])
-            
-            # Add section marker for invalid emails
-            if invalid_results:
-                writer.writerow(['', '', '', '', '', '', ''])  # Empty row
-                writer.writerow(['=== INVALID EMAILS ===', '', '', '', '', '', ''])
-                for result in invalid_results:
-                    writer.writerow([
-                        result.email,
-                        'Invalid',
-                        'No',
-                        result.error_message or 'Failed validation',
-                        result.domain or '',
-                        json.loads(result.mx_records)[0] if result.mx_records else '',
-                        'Yes' if result.smtp_connectable else 'No'
-                    ])
+            if is_phone_validation:
+                # Phone validation CSV format
+                writer.writerow(['Phone Number', 'Status', 'International Format', 'National Format', 'Country', 'Carrier', 'Type', 'Error'])
+                
+                # Add section marker for valid phones
+                if valid_results:
+                    writer.writerow(['=== VALID PHONE NUMBERS ===', '', '', '', '', '', '', ''])
+                    for result in valid_results:
+                        writer.writerow([
+                            result.phone_number,
+                            'Valid',
+                            result.formatted_international or '',
+                            result.formatted_national or '',
+                            result.country_name or '',
+                            result.carrier or '',
+                            result.number_type or '',
+                            ''
+                        ])
+                
+                # Add section marker for invalid phones
+                if invalid_results:
+                    writer.writerow(['', '', '', '', '', '', '', ''])  # Empty row
+                    writer.writerow(['=== INVALID PHONE NUMBERS ===', '', '', '', '', '', '', ''])
+                    for result in invalid_results:
+                        writer.writerow([
+                            result.phone_number,
+                            'Invalid',
+                            '',
+                            '',
+                            '',
+                            '',
+                            '',
+                            result.error_message or 'Failed validation'
+                        ])
+            else:
+                # Email validation CSV format
+                writer.writerow(['Email', 'Status', 'Valid', 'Reason', 'Domain', 'MX Records', 'SMTP Check'])
+                
+                # Add section marker for valid emails
+                if valid_results:
+                    writer.writerow(['=== VALID EMAILS ===', '', '', '', '', '', ''])
+                    for result in valid_results:
+                        writer.writerow([
+                            result.email,
+                            'Valid',
+                            'Yes',
+                            'Valid email - all checks passed',
+                            result.domain or '',
+                            json.loads(result.mx_records)[0] if result.mx_records else '',
+                            'Yes'
+                        ])
+                
+                # Add section marker for invalid emails
+                if invalid_results:
+                    writer.writerow(['', '', '', '', '', '', ''])  # Empty row
+                    writer.writerow(['=== INVALID EMAILS ===', '', '', '', '', '', ''])
+                    for result in invalid_results:
+                        writer.writerow([
+                            result.email,
+                            'Invalid',
+                            'No',
+                            result.error_message or 'Failed validation',
+                            result.domain or '',
+                            json.loads(result.mx_records)[0] if result.mx_records else '',
+                            'Yes' if result.smtp_connectable else 'No'
+                        ])
             
             # Convert to bytes
             csv_content = output.getvalue().encode('utf-8')
             output.close()
             
             # Send file
+            validation_type_name = "phone numbers" if is_phone_validation else "emails" 
             filename = f"validation_results_{job_id}.csv"
             await context.bot.send_document(
                 chat_id=update.effective_chat.id,
                 document=io.BytesIO(csv_content),
                 filename=filename,
                 caption=f"📊 Validation results for job #{job_id}\n\n"
-                       f"Total emails: {len(results)}\n"
+                       f"Total {validation_type_name}: {len(results)}\n"
                        f"Valid: {sum(1 for r in results if r.is_valid)}\n"
                        f"Invalid: {sum(1 for r in results if not r.is_valid)}"
             )
