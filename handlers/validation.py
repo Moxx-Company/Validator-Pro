@@ -418,3 +418,49 @@ When you're done, type /validate to start the validation process.
         finally:
             # Always release validation slot
             validation_queue.release()
+    
+    async def show_job_details(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, job_id: int, db: Session):
+        """Show detailed validation job results"""
+        try:
+            # Get job and results from database
+            job = db.query(ValidationJob).filter(ValidationJob.id == job_id, ValidationJob.user_id == user.id).first()
+            if not job:
+                await update.callback_query.edit_message_text(
+                    "❌ Validation job not found.",
+                    reply_markup=self.keyboards.main_menu()
+                )
+                return
+            
+            results = db.query(ValidationResult).filter(ValidationResult.job_id == job_id).all()
+            
+            # Calculate statistics
+            total_emails = len(results)
+            valid_count = sum(1 for r in results if r.is_valid)
+            invalid_count = total_emails - valid_count
+            
+            # Create details message
+            details_text = f"""📊 Validation Job Details
+
+📁 File: {job.filename}
+📅 Created: {job.created_at.strftime('%Y-%m-%d %H:%M')}
+⚡ Status: {job.status.title()}
+
+📈 Results Summary:
+• Total Emails: {total_emails}
+• Valid Emails: {valid_count}
+• Invalid Emails: {invalid_count}
+• Success Rate: {(valid_count/total_emails*100):.1f}%
+
+⏱️ Processing Time: {job.completed_at.strftime('%H:%M') if job.completed_at else 'In Progress'}"""
+            
+            await update.callback_query.edit_message_text(
+                details_text,
+                reply_markup=self.keyboards.validation_results(job_id)
+            )
+            
+        except Exception as e:
+            logger.error(f"Error showing job details: {e}")
+            await update.callback_query.edit_message_text(
+                "❌ An error occurred loading job details.",
+                reply_markup=self.keyboards.main_menu()
+            )
