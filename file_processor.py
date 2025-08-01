@@ -146,12 +146,24 @@ class FileProcessor:
             # Create DataFrame
             df = pd.DataFrame(results)
             
-            # Reorder columns for better readability
-            column_order = [
-                'email', 'is_valid', 'syntax_valid', 'domain_exists', 
-                'mx_record_exists', 'smtp_connectable', 'domain', 
-                'mx_records', 'error_message', 'validation_time'
-            ]
+            # Detect validation type and set appropriate column order
+            if 'email' in df.columns:
+                # Email validation columns
+                column_order = [
+                    'email', 'is_valid', 'syntax_valid', 'domain_exists', 
+                    'mx_record_exists', 'smtp_connectable', 'domain', 
+                    'mx_records', 'error_message', 'validation_time'
+                ]
+            elif 'number' in df.columns:
+                # Phone validation columns
+                column_order = [
+                    'number', 'is_valid', 'formatted_international', 'formatted_national',
+                    'country_code', 'country_name', 'carrier_name', 'number_type',
+                    'timezones', 'error_message'
+                ]
+            else:
+                # Fallback - use all available columns
+                column_order = list(df.columns)
             
             # Only include columns that exist
             available_columns = [col for col in column_order if col in df.columns]
@@ -167,27 +179,30 @@ class FileProcessor:
             # Create DataFrame
             df = pd.DataFrame(results)
             
+            # Detect validation type for proper labeling
+            validation_type = "Emails" if 'email' in df.columns else "Phone Numbers"
+            
             # Create Excel file with multiple sheets
             with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
                 # All results sheet
                 df.to_excel(writer, sheet_name='All Results', index=False)
                 
-                # Valid emails sheet
+                # Valid results sheet
                 valid_df = df[df['is_valid'] == True]
                 if not valid_df.empty:
-                    valid_df.to_excel(writer, sheet_name='Valid Emails', index=False)
+                    valid_df.to_excel(writer, sheet_name=f'Valid {validation_type}', index=False)
                 
-                # Invalid emails sheet
+                # Invalid results sheet
                 invalid_df = df[df['is_valid'] == False]
                 if not invalid_df.empty:
-                    invalid_df.to_excel(writer, sheet_name='Invalid Emails', index=False)
+                    invalid_df.to_excel(writer, sheet_name=f'Invalid {validation_type}', index=False)
                 
                 # Summary sheet
                 summary_data = {
                     'Metric': [
-                        'Total Emails',
-                        'Valid Emails', 
-                        'Invalid Emails',
+                        f'Total {validation_type}',
+                        f'Valid {validation_type}', 
+                        f'Invalid {validation_type}',
                         'Success Rate (%)',
                         'Average Validation Time (s)'
                     ],
