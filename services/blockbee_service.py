@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 class BlockBeeService:
     def __init__(self):
         self.api_key = BLOCKBEE_API_KEY
-        # Use CryptAPI (free BlockBee service) if API key is not working
-        self.base_url = "https://api.cryptapi.io"
+        self.base_url = "https://api.blockbee.io"
         self.webhook_url = BLOCKBEE_WEBHOOK_URL
     
     def create_payment_address(self, currency: str, user_id: str, amount_usd: float) -> Dict:
@@ -40,24 +39,27 @@ class BlockBeeService:
             # Create callback URL with user info
             callback_url = f"{self.webhook_url}?user_id={user_id}&currency={currency}&amount_usd={amount_usd}"
             
-            # Request payment address from CryptAPI (free BlockBee service)
+            # Request payment address from BlockBee API
             params = {
                 'callback': callback_url,
+                'apikey': self.api_key,
                 'address': self._get_receiving_address(blockbee_currency),
-                'convert': 1
+                'convert': 1,
+                'pending': 1,  # Notify for pending transactions
+                'post': 1,     # Use POST for webhooks  
+                'json': 1      # JSON format for webhooks
             }
             
-            logger.info(f"Creating CryptAPI payment for {blockbee_currency}")
-            response = requests.post(f"{self.base_url}/{blockbee_currency}/create", params=params)
+            logger.info(f"Creating BlockBee payment for {blockbee_currency}")
+            response = requests.get(f"{self.base_url}/{blockbee_currency}/create/", params=params)
             
             if response.status_code == 200:
                 data = response.json()
                 
                 if data.get('status') == 'success':
                     payment_address = data['address_in']
-                    # For BlockBee, we need to calculate the amount based on current rates
-                    # For now, use a fixed amount - in production you'd call their conversion API
-                    amount_crypto = self._calculate_crypto_amount(blockbee_currency, amount_usd)
+                    # Get crypto amount using BlockBee conversion API
+                    amount_crypto = self._get_crypto_amount(blockbee_currency, amount_usd)
                     
                     # Generate QR code
                     qr_image = self.generate_qr_code(payment_address, amount_crypto, currency)
@@ -83,10 +85,29 @@ class BlockBeeService:
             logger.error(f"Error getting payment info: {e}")
             return {'success': False, 'error': 'Payment info failed'}
     
-    def _calculate_crypto_amount(self, currency: str, amount_usd: float) -> float:
-        """Calculate crypto amount for USD value - simplified version"""
-        # In production, you'd call BlockBee's conversion API or a price feed
-        # For now, using approximate rates for demonstration
+    def _get_crypto_amount(self, currency: str, amount_usd: float) -> float:
+        """Get crypto amount using BlockBee conversion API"""
+        try:
+            params = {
+                'apikey': self.api_key,
+                'value': amount_usd,
+                'from': 'USD'
+            }
+            response = requests.get(f"{self.base_url}/{currency}/convert/", params=params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('status') == 'success':
+                    return float(data.get('value_coin', 0))
+            
+            # Fallback to approximate rates if API fails
+            return self._calculate_crypto_amount_fallback(currency, amount_usd)
+        except Exception as e:
+            logger.error(f"Error converting amount: {e}")
+            return self._calculate_crypto_amount_fallback(currency, amount_usd)
+    
+    def _calculate_crypto_amount_fallback(self, currency: str, amount_usd: float) -> float:
+        """Fallback crypto amount calculation"""
         approximate_rates = {
             'btc': 0.00015,  # ~$67000 per BTC
             'eth': 0.003,    # ~$3300 per ETH
@@ -133,8 +154,10 @@ class BlockBeeService:
             if not blockbee_currency:
                 return {'success': False, 'error': 'Unsupported currency'}
             
-            response = requests.get(f"{self.base_url}/{blockbee_currency}/info", 
-                                  params={'address': address})
+            params = {'apikey': self.api_key}
+            if address:
+                params['address'] = address
+            response = requests.get(f"{self.base_url}/{blockbee_currency}/info/", params=params)
             
             if response.status_code == 200:
                 data = response.json()
