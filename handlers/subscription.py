@@ -48,30 +48,46 @@ Your subscription will expire automatically.
 No auto-renewal charges.
                 """
             else:
-                from config import TRIAL_EMAIL_LIMIT
-                trial_remaining = TRIAL_EMAIL_LIMIT - user.trial_emails_used
+                from config import TRIAL_VALIDATION_LIMIT
+                emails_used = user.trial_emails_used or 0
+                phones_used = user.trial_phones_used or 0
+                total_used = emails_used + phones_used
+                trial_remaining = TRIAL_VALIDATION_LIMIT - total_used
+                
+                # Check if trial has been started (any validations used)
+                trial_started = total_used > 0
+                
                 menu_text = f"""
 💎 **Subscription Management**
 
-**Status:** 🆓 Trial
-**Remaining:** {trial_remaining} free validations
+**Status:** 🆓 Trial {'Active' if trial_started else 'Available'}
+**Email validations used:** {emails_used}
+**Phone validations used:** {phones_used}
+**Total remaining:** {trial_remaining} free validations
 
 {SUBSCRIPTION_INFO}
 
-Upgrade now for unlimited email validation!
+Upgrade now for unlimited validation!
                 """
+            
+            # Determine if trial has been started
+            trial_started = False
+            if not has_active:
+                emails_used = user.trial_emails_used or 0
+                phones_used = user.trial_phones_used or 0
+                trial_started = (emails_used + phones_used) > 0
             
             if update.message:
                 await update.message.reply_text(
                     menu_text,
-                    reply_markup=self.keyboards.subscription_menu(has_active),
+                    reply_markup=self.keyboards.subscription_menu(has_active, trial_started),
                     parse_mode='Markdown'
                 )
             else:
                 query = update.callback_query
                 await query.edit_message_text(
                     menu_text,
-                    reply_markup=self.keyboards.subscription_menu(has_active),
+                    reply_markup=self.keyboards.subscription_menu(has_active, trial_started),
                     parse_mode='Markdown'
                 )
     

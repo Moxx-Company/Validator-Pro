@@ -26,7 +26,7 @@ class Keyboards:
         return InlineKeyboardMarkup(keyboard)
     
     @staticmethod
-    def subscription_menu(has_active=False):
+    def subscription_menu(has_active=False, trial_started=False):
         """Subscription management keyboard"""
         if has_active:
             keyboard = [
@@ -37,10 +37,12 @@ class Keyboards:
         else:
             keyboard = [
                 [InlineKeyboardButton("💎 Subscribe Now", callback_data="subscribe")],
-                [InlineKeyboardButton("🆓 Start Free Trial", callback_data="start_trial")],
                 [InlineKeyboardButton("ℹ️ Subscription Info", callback_data="sub_info")],
                 [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
             ]
+            # Only show "Start Free Trial" if trial hasn't been started yet
+            if not trial_started:
+                keyboard.insert(1, [InlineKeyboardButton("🆓 Start Free Trial", callback_data="start_trial")])
         return InlineKeyboardMarkup(keyboard)
     
     @staticmethod
