@@ -230,7 +230,7 @@ When you're done, type /validate to start the validation process.
                 await file.download_to_drive(file_path)
                 
                 # Process file
-                emails = self.file_processor.process_file(file_path)
+                emails, file_info = self.file_processor.process_uploaded_file(file_path)
                 
                 if not emails:
                     await processing_msg.edit_text(
