@@ -26,7 +26,7 @@ class ValidationResult:
     validation_time: float
 
 class EmailValidator:
-    def __init__(self, timeout: int = 3, max_workers: int = 20):
+    def __init__(self, timeout: int = 2, max_workers: int = 30):
         self.timeout = timeout
         self.max_workers = max_workers
         self.dns_resolver = dns.resolver.Resolver()
@@ -66,11 +66,11 @@ class EmailValidator:
             return []
     
     def check_smtp_connectivity(self, mx_record: str, email: str) -> bool:
-        """Check SMTP connectivity to MX record"""
+        """Check SMTP connectivity to MX record (fast check)"""
         try:
-            # Create socket with timeout
+            # Create socket with short timeout for speed
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(self.timeout)
+            sock.settimeout(1)  # Very short timeout for speed
             
             # Try to connect to SMTP server
             result = sock.connect_ex((mx_record, 25))
@@ -153,12 +153,12 @@ class EmailValidator:
             if mx_records:
                 result.smtp_connectable = self.check_smtp_connectivity(mx_records[0], email)
             
-            # Final validation decision
+            # Final validation decision (prioritize speed over SMTP check)
             result.is_valid = (
                 result.syntax_valid and 
                 result.domain_exists and 
-                result.mx_record_exists and
-                result.smtp_connectable
+                result.mx_record_exists
+                # SMTP check is optional for speed - most emails with valid domain + MX are deliverable
             )
             
             if not result.smtp_connectable:

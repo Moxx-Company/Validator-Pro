@@ -38,11 +38,11 @@ def generate_job_id() -> str:
     random_hash = hashlib.md5(str(datetime.utcnow().timestamp()).encode()).hexdigest()[:8]
     return f"job_{timestamp}_{random_hash}"
 
-def create_progress_bar(percentage: int, length: int = 20) -> str:
+def create_progress_bar(percentage: float, length: int = 20) -> str:
     """Create a Unicode progress bar"""
-    filled_length = int(length * percentage // 100)
+    filled_length = int(length * percentage / 100)
     bar = '█' * filled_length + '░' * (length - filled_length)
-    return f"[{bar}] {percentage}%"
+    return f"[{bar}] {percentage:.1f}%"
 
 def format_duration(seconds: int) -> str:
     """Format duration in human readable format"""

@@ -288,7 +288,7 @@ When you're done, type /validate to start the validation process.
             )
             
             # Process emails in batches
-            batch_size = 5  # Smaller batch size to prevent timeouts
+            batch_size = 10  # Increased batch size for faster processing
             validated_count = 0
             
             for i in range(0, len(emails), batch_size):
@@ -373,24 +373,21 @@ When you're done, type /validate to start the validation process.
             valid_count = sum(1 for r in results if r.is_valid)
             invalid_count = len(results) - valid_count
             
-            # Final message
-            final_text = f"""
-✅ **Validation Complete!**
+            # Final message without markdown to avoid parsing errors
+            final_text = f"""✅ Validation Complete!
 
-📊 **Results Summary:**
+📊 Results Summary:
 • Total emails: {len(emails)}
 • Valid: {valid_count}
 • Invalid: {invalid_count}
 • Accuracy: {(valid_count/len(emails)*100):.1f}%
 
-📁 **File:** {filename or 'Manual Input'}
-⏱️ **Completed:** {datetime.now().strftime('%H:%M')}
-            """
+📁 File: {filename or 'Manual Input'}
+⏱️ Completed: {datetime.now().strftime('%H:%M')}"""
             
             await message.edit_text(
                 final_text,
-                reply_markup=self.keyboards.validation_results(job.id),
-                parse_mode='Markdown'
+                reply_markup=self.keyboards.validation_results(job.id)
             )
             
         except Exception as e:
