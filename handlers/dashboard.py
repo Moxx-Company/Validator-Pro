@@ -8,7 +8,7 @@ from telegram.ext import ContextTypes
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from database import SessionLocal
-from models import User, ValidationJob, UsageStats
+from models import User, ValidationJob, ValidationResult, UsageStats
 from keyboards import Keyboards
 from utils import format_duration, create_progress_bar
 
@@ -99,10 +99,25 @@ What would you like to explore?
             ValidationJob.status == 'completed'
         ).all()
         
-        # Email statistics
-        total_validations = sum(job.total_emails for job in completed_jobs)
-        valid_emails = sum(job.valid_emails for job in completed_jobs)
-        success_rate = round((valid_emails / total_validations * 100), 2) if total_validations > 0 else 0
+        # Email statistics - get from actual validation results
+        job_ids = [job.id for job in completed_jobs]
+        
+        if job_ids:
+            # Count total validation results
+            total_validations = db.query(ValidationResult).filter(
+                ValidationResult.job_id.in_(job_ids)
+            ).count()
+            
+            # Count valid emails
+            valid_emails = db.query(ValidationResult).filter(
+                ValidationResult.job_id.in_(job_ids),
+                ValidationResult.is_valid == True
+            ).count()
+        else:
+            total_validations = 0
+            valid_emails = 0
+            
+        success_rate = round((valid_emails / total_validations * 100), 1) if total_validations > 0 else 0
         
         # Subscription info
         if user.has_active_subscription():
@@ -122,9 +137,23 @@ What would you like to explore?
             ValidationJob.status == 'completed'
         ).all()
         
-        month_validations = sum(job.total_emails for job in month_jobs)
-        month_valid = sum(job.valid_emails for job in month_jobs)
-        month_accuracy = round((month_valid / month_validations * 100), 2) if month_validations > 0 else 0
+        # Monthly statistics - get from actual validation results
+        month_job_ids = [job.id for job in month_jobs]
+        
+        if month_job_ids:
+            month_validations = db.query(ValidationResult).filter(
+                ValidationResult.job_id.in_(month_job_ids)
+            ).count()
+            
+            month_valid = db.query(ValidationResult).filter(
+                ValidationResult.job_id.in_(month_job_ids),
+                ValidationResult.is_valid == True
+            ).count()
+        else:
+            month_validations = 0
+            month_valid = 0
+            
+        month_accuracy = round((month_valid / month_validations * 100), 1) if month_validations > 0 else 0
         
         return {
             'total_jobs': total_jobs,
