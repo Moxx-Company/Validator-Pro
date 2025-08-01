@@ -292,8 +292,8 @@ When you're done, type /validate to start the validation process.
                 reply_markup=None
             )
             
-            # Process emails in larger batches for enterprise performance
-            batch_size = 50  # Much larger batch size for high throughput
+            # Process emails in smaller batches to prevent timeouts
+            batch_size = 25  # Reduced batch size for reliability
             validated_count = 0
             
             for i in range(0, len(emails), batch_size):
@@ -304,11 +304,16 @@ When you're done, type /validate to start the validation process.
                     tasks = [self.email_validator.validate_email(email) for email in batch]
                     results = await asyncio.wait_for(
                         asyncio.gather(*tasks, return_exceptions=True),
-                        timeout=60.0  # 60 second timeout for larger batches
+                        timeout=30.0  # 30 second timeout to prevent hanging
                     )
                 except asyncio.TimeoutError:
+                    logger.warning(f"Batch timeout at {validated_count}/{len(emails)}")
                     # Handle timeout by marking all emails in batch as failed
                     results = [{'is_valid': False, 'reason': 'Validation timeout', 'mx_record': None, 'smtp_check': False} for _ in batch]
+                except Exception as batch_error:
+                    logger.error(f"Batch error at {validated_count}/{len(emails)}: {batch_error}")
+                    # Handle other errors by marking all emails in batch as failed
+                    results = [{'is_valid': False, 'reason': f'Batch error: {str(batch_error)}', 'mx_record': None, 'smtp_check': False} for _ in batch]
                 
                 # Save results
                 for email, result in zip(batch, results):
@@ -354,12 +359,12 @@ When you're done, type /validate to start the validation process.
                     logger.error(f"Database commit error: {commit_error}")
                     db.rollback()
                 
-                # Update progress every batch (reduce UI updates for performance)
+                # Update progress every batch 
                 progress = (validated_count / len(emails)) * 100
                 progress_bar = create_progress_bar(progress)
                 
-                # Update UI only every 100 emails to reduce API calls
-                if validated_count % 100 == 0 or validated_count == len(emails):
+                # Update UI regularly but not too frequently
+                if i % (batch_size * 2) == 0 or validated_count == len(emails):
                     try:
                         await message.edit_text(
                             f"🔄 Validating emails...\n"
@@ -369,6 +374,10 @@ When you're done, type /validate to start the validation process.
                         )
                     except Exception as update_error:
                         logger.debug(f"Progress update failed: {update_error}")  # Ignore rate limits
+                
+                # Add small delay to prevent overwhelming the system
+                if validated_count % 100 == 0:
+                    await asyncio.sleep(0.1)
             
             # Update job status
             job.status = "completed"
