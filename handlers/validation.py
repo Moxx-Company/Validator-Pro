@@ -288,28 +288,57 @@ When you're done, type /validate to start the validation process.
             )
             
             # Process emails in batches
-            batch_size = 10
+            batch_size = 5  # Smaller batch size to prevent timeouts
             validated_count = 0
             
             for i in range(0, len(emails), batch_size):
                 batch = emails[i:i + batch_size]
                 
-                # Validate batch concurrently
-                tasks = [self.email_validator.validate_email(email) for email in batch]
-                results = await asyncio.gather(*tasks, return_exceptions=True)
+                # Validate batch concurrently with timeout
+                try:
+                    tasks = [self.email_validator.validate_email(email) for email in batch]
+                    results = await asyncio.wait_for(
+                        asyncio.gather(*tasks, return_exceptions=True),
+                        timeout=30.0  # 30 second timeout per batch
+                    )
+                except asyncio.TimeoutError:
+                    # Handle timeout by marking all emails in batch as failed
+                    results = [{'is_valid': False, 'reason': 'Validation timeout', 'mx_record': None, 'smtp_check': False} for _ in batch]
                 
                 # Save results
                 for email, result in zip(batch, results):
-                    if not isinstance(result, Exception):
-                        validation_result = ValidationResult(
-                            job_id=job.id,
-                            email=email,
-                            is_valid=result.get('is_valid', False),
-                            error_message=result.get('reason', 'Unknown error'),
-                            mx_records=result.get('mx_record'),
-                            smtp_connectable=result.get('smtp_check', False)
-                        )
-                        db.add(validation_result)
+                    try:
+                        if not isinstance(result, Exception):
+                            # Convert mx_record to JSON string if it's a list
+                            mx_records_str = None
+                            if result.get('mx_record'):
+                                if isinstance(result.get('mx_record'), list):
+                                    mx_records_str = result.get('mx_record')[0] if result.get('mx_record') else None
+                                else:
+                                    mx_records_str = result.get('mx_record')
+                            
+                            validation_result = ValidationResult(
+                                job_id=job.id,
+                                email=email,
+                                is_valid=result.get('is_valid', False),
+                                error_message=result.get('reason', 'Unknown error'),
+                                mx_records=mx_records_str,
+                                smtp_connectable=result.get('smtp_check', False)
+                            )
+                            db.add(validation_result)
+                        else:
+                            # Handle exception results
+                            validation_result = ValidationResult(
+                                job_id=job.id,
+                                email=email,
+                                is_valid=False,
+                                error_message=f"Validation error: {str(result)}",
+                                mx_records=None,
+                                smtp_connectable=False
+                            )
+                            db.add(validation_result)
+                    except Exception as save_error:
+                        logger.error(f"Error saving validation result for {email}: {save_error}")
                     
                     validated_count += 1
                 

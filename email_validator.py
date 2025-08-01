@@ -26,7 +26,7 @@ class ValidationResult:
     validation_time: float
 
 class EmailValidator:
-    def __init__(self, timeout: int = 10, max_workers: int = 50):
+    def __init__(self, timeout: int = 3, max_workers: int = 20):
         self.timeout = timeout
         self.max_workers = max_workers
         self.dns_resolver = dns.resolver.Resolver()
