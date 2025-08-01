@@ -19,6 +19,7 @@ class User(Base):
     # Onboarding status
     is_onboarded = Column(Boolean, default=False)
     trial_emails_used = Column(Integer, default=0)
+    trial_phones_used = Column(Integer, default=0)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -52,8 +53,41 @@ class User(Base):
         """Check if user can validate emails"""
         if self.has_active_subscription():
             return True
-        from config import TRIAL_EMAIL_LIMIT
-        return (self.trial_emails_used + count) <= TRIAL_EMAIL_LIMIT
+        from config import TRIAL_VALIDATION_LIMIT
+        return (self.trial_emails_used + count) <= TRIAL_VALIDATION_LIMIT
+    
+    def can_validate_phones(self, count=1):
+        """Check if user can validate phone numbers"""
+        if self.has_active_subscription():
+            return True
+        from config import TRIAL_VALIDATION_LIMIT
+        return (self.trial_phones_used + count) <= TRIAL_VALIDATION_LIMIT
+    
+    def can_validate(self, validation_type='email', count=1):
+        """Check if user can validate items (unified trial system)"""
+        if self.has_active_subscription():
+            return True
+        
+        from config import TRIAL_VALIDATION_LIMIT
+        emails_used = self.trial_emails_used or 0
+        phones_used = self.trial_phones_used or 0
+        total_used = emails_used + phones_used
+        return (total_used + count) <= TRIAL_VALIDATION_LIMIT
+    
+    def get_trial_remaining(self):
+        """Get remaining trial validations"""
+        from config import TRIAL_VALIDATION_LIMIT
+        emails_used = self.trial_emails_used or 0
+        phones_used = self.trial_phones_used or 0
+        total_used = emails_used + phones_used
+        return max(0, TRIAL_VALIDATION_LIMIT - total_used)
+    
+    def use_trial_validations(self, validation_type='email', count=1):
+        """Use trial validations"""
+        if validation_type == 'email':
+            self.trial_emails_used = (self.trial_emails_used or 0) + count
+        else:
+            self.trial_phones_used = (self.trial_phones_used or 0) + count
 
 class Subscription(Base):
     __tablename__ = 'subscriptions'

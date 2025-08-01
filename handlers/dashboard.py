@@ -125,9 +125,10 @@ What would you like to explore?
             days_remaining = active_sub.days_remaining()
             subscription_info = f"✅ Active ({days_remaining} days remaining)"
         else:
-            from config import TRIAL_EMAIL_LIMIT
-            trial_remaining = TRIAL_EMAIL_LIMIT - user.trial_emails_used
-            subscription_info = f"🆓 Trial ({trial_remaining} validations remaining)"
+            trial_remaining = user.get_trial_remaining()
+            emails_used = user.trial_emails_used or 0
+            phones_used = user.trial_phones_used or 0
+            subscription_info = f"🆓 Trial ({trial_remaining} validations remaining)\n    📧 Emails used: {emails_used}\n    📱 Phones used: {phones_used}"
         
         # Monthly statistics
         month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)

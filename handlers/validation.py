@@ -302,10 +302,9 @@ When you're done, click "Start Validation" below or type /done.
                     await update.message.reply_text(message, reply_markup=self.keyboards.main_menu())
                 return
             
-            # Check credits
+            # Check credits using unified trial system
             if not user.has_active_subscription():
-                from config import TRIAL_EMAIL_LIMIT
-                remaining = TRIAL_EMAIL_LIMIT - user.trial_emails_used
+                remaining = user.get_trial_remaining()
                 if len(emails) > remaining:
                     message = (f"❌ You entered {len(emails)} emails, but only have {remaining} trial validations remaining.\n\n"
                               "Please subscribe for unlimited access.")
@@ -423,10 +422,9 @@ When you're done, click "Start Validation" below.
                     await update.message.reply_text(message, reply_markup=self.keyboards.main_menu())
                 return
             
-            # Check credits
+            # Check credits using unified trial system
             if not user.has_active_subscription():
-                from config import TRIAL_EMAIL_LIMIT
-                remaining = TRIAL_EMAIL_LIMIT - user.trial_emails_used
+                remaining = user.get_trial_remaining()
                 if len(phones) > remaining:
                     message = (f"❌ You entered {len(phones)} phone numbers, but only have {remaining} trial validations remaining.\n\n"
                               "Please subscribe for unlimited access.")
@@ -535,7 +533,7 @@ When you're done, click "Start Validation" below.
             
             # Update user usage
             if not user.has_active_subscription():
-                user.trial_emails_used += len(phone_numbers)
+                user.use_trial_validations('phone', len(phone_numbers))
                 db.commit()
             
             # Show final results
@@ -637,10 +635,9 @@ When you're done, click "Start Validation" below.
                     )
                     return
                 
-                # Check if user has enough credits
+                # Check if user has enough credits using unified trial system
                 if not user.has_active_subscription():
-                    from config import TRIAL_EMAIL_LIMIT
-                    remaining = TRIAL_EMAIL_LIMIT - user.trial_emails_used
+                    remaining = user.get_trial_remaining()
                     if len(items) > remaining:
                         await processing_msg.edit_text(
                             f"❌ File contains {len(items)} {item_name}, but you only have {remaining} trial validations remaining.\n\n"
@@ -829,7 +826,7 @@ When you're done, click "Start Validation" below.
             
             # Update user usage
             if not user.has_active_subscription():
-                user.trial_emails_used += len(emails)
+                user.use_trial_validations('email', len(emails))
             
             db.commit()
             

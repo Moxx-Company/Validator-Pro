@@ -11,7 +11,8 @@ DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///email_validator.db')
 
 # Subscription Configuration
 SUBSCRIPTION_PRICE_USD = 9.99
-TRIAL_EMAIL_LIMIT = 5000
+TRIAL_VALIDATION_LIMIT = 5000  # Combined limit for emails and phones
+TRIAL_EMAIL_LIMIT = 5000  # Keep for backward compatibility
 SUBSCRIPTION_DURATION_DAYS = 30
 
 # Email Validation Configuration
@@ -41,24 +42,25 @@ RESULTS_EXPIRY_HOURS = 24
 
 # Bot Messages
 WELCOME_MESSAGE = """
-🎯 **Welcome to Email Validator Pro!**
+🎯 **Welcome to Email & Phone Validator Pro!**
 
-I help you validate bulk email lists with high accuracy.
+I help you validate bulk email lists and phone numbers with high accuracy.
 
 ✅ **Features:**
-• DNS & MX record validation
+• Email validation (DNS, MX, SMTP checks)
+• Phone validation (carrier, country detection)
 • Bulk processing (CSV/Excel/TXT)
 • Detailed validation reports
 • Usage statistics & dashboard
 
 📊 **Subscription:** $9.99/month
-🆓 **Trial:** 5000 free validations
+🆓 **Trial:** 5000 free validations (emails + phones)
 
 Ready to get started?
 """
 
 SUBSCRIPTION_INFO = """
-💎 **Email Validator Pro Subscription**
+💎 **Email & Phone Validator Pro Subscription**
 
 **Price:** $9.99/month
 **Duration:** 30 days
@@ -66,8 +68,10 @@ SUBSCRIPTION_INFO = """
 
 **What's included:**
 ✅ Unlimited email validations
+✅ Unlimited phone validations
 ✅ Bulk file processing
 ✅ Advanced deliverability checks
+✅ Carrier & country detection
 ✅ Priority support
 ✅ Detailed analytics
 
