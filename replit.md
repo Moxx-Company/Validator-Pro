@@ -15,6 +15,8 @@ This is a comprehensive Telegram bot that provides both bulk email and phone num
 - **Validation Accuracy**: Phone validation now shows realistic success rates (30-70%) by properly marking unparseable numbers as invalid
 - **UI Fixes**: Fixed callback routing conflicts and premature "Start Validation" button appearance for phone input
 - **Database Integration**: Resolved field mapping errors for phone validation - all functions work correctly
+- **CSV Download Fix**: Fixed CSV download showing email format for phone validation - now shows proper phone columns
+- **Trial Limit Increase**: Expanded trial from 10,000 to 20,000 free validations (combined emails + phones)
 
 ## User Preferences
 
