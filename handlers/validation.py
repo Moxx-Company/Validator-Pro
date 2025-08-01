@@ -86,6 +86,7 @@ class ValidationHandler:
                 await self.start_validation_from_input(update, context)
                 
             elif data == 'start_phone_validation':
+                logger.info(f"Processing start_phone_validation callback")
                 await self.start_phone_validation_from_input(update, context)
     
     async def show_validation_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, validation_type: str = 'email'):
@@ -393,7 +394,9 @@ When you're done, click "Start Validation" below.
     
     async def start_phone_validation_from_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Start validation from manually entered phone numbers"""
+        logger.info(f"start_phone_validation_from_input called")
         phones = context.user_data.get('collected_phones', [])
+        logger.info(f"Found {len(phones)} phones in user_data: {phones}")
         
         if not phones:
             if update.callback_query:
