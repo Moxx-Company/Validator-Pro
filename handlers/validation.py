@@ -941,10 +941,18 @@ When you're done, click "Start Validation" below.
                 )
                 return
             
-            # Sort results: valid emails first, then invalid
+            # Sort results: valid first, then invalid
             valid_results = [r for r in results if r.is_valid]
             invalid_results = [r for r in results if not r.is_valid]
-            sorted_results = valid_results + invalid_results
+            
+            # For phone validation, group valid numbers by type
+            if results and results[0].validation_type == 'phone':
+                mobile_results = [r for r in valid_results if r.number_type and 'mobile' in r.number_type.lower()]
+                landline_results = [r for r in valid_results if r.number_type and ('fixed' in r.number_type.lower() or 'landline' in r.number_type.lower())]
+                other_valid_results = [r for r in valid_results if r not in mobile_results and r not in landline_results]
+                sorted_results = mobile_results + landline_results + other_valid_results + invalid_results
+            else:
+                sorted_results = valid_results + invalid_results
             
             # Create CSV content
             import io
@@ -960,13 +968,52 @@ When you're done, click "Start Validation" below.
                 # Phone validation CSV format
                 writer.writerow(['Phone Number', 'Status', 'International Format', 'National Format', 'Country', 'Carrier', 'Type', 'Error'])
                 
-                # Add section marker for valid phones
-                if valid_results:
-                    writer.writerow(['=== VALID PHONE NUMBERS ===', '', '', '', '', '', '', ''])
-                    for result in valid_results:
+                # Group valid phones by type
+                mobile_results = [r for r in valid_results if r.number_type and 'mobile' in r.number_type.lower()]
+                landline_results = [r for r in valid_results if r.number_type and ('fixed' in r.number_type.lower() or 'landline' in r.number_type.lower())]
+                other_valid_results = [r for r in valid_results if r not in mobile_results and r not in landline_results]
+                
+                # Add mobile section
+                if mobile_results:
+                    writer.writerow(['=== VALID MOBILE NUMBERS ===', '', '', '', '', '', '', ''])
+                    for result in mobile_results:
                         writer.writerow([
                             result.phone_number,
-                            'Valid',
+                            'Valid - Mobile',
+                            result.formatted_international or '',
+                            result.formatted_national or '',
+                            result.country_name or '',
+                            result.carrier or '',
+                            result.number_type or '',
+                            ''
+                        ])
+                
+                # Add landline section
+                if landline_results:
+                    if mobile_results:
+                        writer.writerow(['', '', '', '', '', '', '', ''])  # Empty row
+                    writer.writerow(['=== VALID LANDLINE NUMBERS ===', '', '', '', '', '', '', ''])
+                    for result in landline_results:
+                        writer.writerow([
+                            result.phone_number,
+                            'Valid - Landline',
+                            result.formatted_international or '',
+                            result.formatted_national or '',
+                            result.country_name or '',
+                            result.carrier or '',
+                            result.number_type or '',
+                            ''
+                        ])
+                
+                # Add other valid numbers section
+                if other_valid_results:
+                    if mobile_results or landline_results:
+                        writer.writerow(['', '', '', '', '', '', '', ''])  # Empty row
+                    writer.writerow(['=== OTHER VALID NUMBERS ===', '', '', '', '', '', '', ''])
+                    for result in other_valid_results:
+                        writer.writerow([
+                            result.phone_number,
+                            'Valid - Other',
                             result.formatted_international or '',
                             result.formatted_national or '',
                             result.country_name or '',
