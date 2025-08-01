@@ -295,6 +295,9 @@ When you're done, type /validate to start the validation process.
                 reply_markup=None
             )
             
+            # Create validator instance
+            validator = EmailValidator()
+            
             # Process emails in stable batches
             batch_size = 25  # Balanced for stability and speed
             validated_count = 0
