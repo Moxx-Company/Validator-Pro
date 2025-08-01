@@ -113,7 +113,8 @@ class FileProcessor:
             for phone in phones:
                 # Remove common non-phone characters but keep + for international
                 phone_str = str(phone).strip()
-                if phone_str and len(phone_str) >= 7:  # Minimum viable phone length
+                # Only filter out completely empty strings - let validator handle length validation
+                if phone_str:
                     cleaned_phones.append(phone_str)
             
             return cleaned_phones
