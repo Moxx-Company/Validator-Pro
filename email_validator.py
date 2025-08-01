@@ -170,6 +170,16 @@ class EmailValidator:
         result.validation_time = time.time() - start_time
         return result
     
+    async def validate_email(self, email: str) -> Dict:
+        """Async wrapper for single email validation"""
+        result = self.validate_single_email(email)
+        return {
+            'is_valid': result.is_valid,
+            'reason': result.error_message,
+            'mx_record': result.mx_records[0] if result.mx_records else None,
+            'smtp_check': result.smtp_connectable
+        }
+    
     async def validate_bulk_emails(self, emails: List[str], progress_callback=None) -> List[ValidationResult]:
         """Validate multiple emails concurrently"""
         results = []

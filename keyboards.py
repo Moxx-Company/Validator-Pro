@@ -128,3 +128,24 @@ class Keyboards:
             [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
         ]
         return InlineKeyboardMarkup(keyboard)
+    
+    @staticmethod
+    def subscription_prompt():
+        """Prompt to subscribe when trial limit exceeded"""
+        keyboard = [
+            [InlineKeyboardButton("💎 Subscribe Now", callback_data="subscribe")],
+            [InlineKeyboardButton("ℹ️ Subscription Info", callback_data="sub_info")],
+            [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
+        ]
+        return InlineKeyboardMarkup(keyboard)
+    
+    @staticmethod
+    def validation_results(job_id):
+        """Actions for completed validation results"""
+        keyboard = [
+            [InlineKeyboardButton("📥 Download CSV", callback_data=f"download_{job_id}")],
+            [InlineKeyboardButton("📊 View Details", callback_data=f"details_{job_id}")],
+            [InlineKeyboardButton("🔁 Validate More", callback_data="validate_emails")],
+            [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
+        ]
+        return InlineKeyboardMarkup(keyboard)
