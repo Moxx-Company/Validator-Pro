@@ -11,8 +11,8 @@ DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///email_validator.db')
 
 # Subscription Configuration
 SUBSCRIPTION_PRICE_USD = 9.99
-TRIAL_VALIDATION_LIMIT = 5000  # Combined limit for emails and phones
-TRIAL_EMAIL_LIMIT = 5000  # Keep for backward compatibility
+TRIAL_VALIDATION_LIMIT = 10000  # Combined limit for emails and phones
+TRIAL_EMAIL_LIMIT = 10000  # Keep for backward compatibility
 SUBSCRIPTION_DURATION_DAYS = 30
 
 # Email Validation Configuration
@@ -54,7 +54,7 @@ I help you validate bulk email lists and phone numbers with high accuracy.
 • Usage statistics & dashboard
 
 📊 **Subscription:** $9.99/month
-🆓 **Trial:** 5000 free validations (emails + phones)
+🆓 **Trial:** 10,000 free validations (emails + phones)
 
 Ready to get started?
 """

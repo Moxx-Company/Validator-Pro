@@ -56,7 +56,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Subscription Management
 - **Cryptocurrency Payments**: Support for Bitcoin, Ethereum, and USDT payments
-- **Trial System**: Free trial with limited validations before requiring subscription
+- **Trial System**: Free trial with 10,000 validations (combined emails + phones) before requiring subscription
 - **Payment Tracking**: Automated payment verification and subscription activation
 - **Usage Monitoring**: Tracks user validation usage against subscription limits
 
