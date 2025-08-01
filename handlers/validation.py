@@ -66,7 +66,8 @@ class ValidationHandler:
             if user.has_active_subscription():
                 capacity_info = "✅ **Unlimited validations**"
             else:
-                remaining = 10 - user.trial_emails_used
+                from config import TRIAL_EMAIL_LIMIT
+                remaining = TRIAL_EMAIL_LIMIT - user.trial_emails_used
                 capacity_info = f"🆓 **Trial:** {remaining} validations remaining"
             
             menu_text = f"""
@@ -241,7 +242,8 @@ When you're done, type /validate to start the validation process.
                 
                 # Check if user has enough credits
                 if not user.has_active_subscription():
-                    remaining = 50 - user.trial_emails_used
+                    from config import TRIAL_EMAIL_LIMIT
+                    remaining = TRIAL_EMAIL_LIMIT - user.trial_emails_used
                     if len(emails) > remaining:
                         await processing_msg.edit_text(
                             f"❌ File contains {len(emails)} emails, but you only have {remaining} trial validations remaining.\n\n"

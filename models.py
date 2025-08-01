@@ -52,7 +52,8 @@ class User(Base):
         """Check if user can validate emails"""
         if self.has_active_subscription():
             return True
-        return (self.trial_emails_used + count) <= 50
+        from config import TRIAL_EMAIL_LIMIT
+        return (self.trial_emails_used + count) <= TRIAL_EMAIL_LIMIT
 
 class Subscription(Base):
     __tablename__ = 'subscriptions'

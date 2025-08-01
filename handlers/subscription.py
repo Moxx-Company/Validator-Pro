@@ -48,7 +48,8 @@ Your subscription will expire automatically.
 No auto-renewal charges.
                 """
             else:
-                trial_remaining = 10 - user.trial_emails_used
+                from config import TRIAL_EMAIL_LIMIT
+                trial_remaining = TRIAL_EMAIL_LIMIT - user.trial_emails_used
                 menu_text = f"""
 💎 **Subscription Management**
 
@@ -316,10 +317,11 @@ Just paste the transaction hash as a message.
             )
             return
         
-        trial_text = """
+        from config import TRIAL_EMAIL_LIMIT
+        trial_text = f"""
 🎁 **Free Trial Started!**
 
-You now have **10 free email validations** to test our service.
+You now have **{TRIAL_EMAIL_LIMIT} free email validations** to test our service.
 
 **What's included:**
 ✅ Full validation (syntax, DNS, MX, SMTP)
@@ -410,7 +412,8 @@ Ready to upgrade your email validation?
 Your subscription will expire automatically on the date above.
                 """
             else:
-                trial_remaining = 10 - user.trial_emails_used
+                from config import TRIAL_EMAIL_LIMIT
+                trial_remaining = TRIAL_EMAIL_LIMIT - user.trial_emails_used
                 status_text = f"""
 🆓 **Trial Status**
 
