@@ -11,6 +11,7 @@ This is a comprehensive Telegram bot that provides both bulk email and phone num
 - **Fixed Critical Bug**: "Enter email address" functionality now works correctly without "Unknown command" errors
 - **Phone Validation Features**: International format support, carrier detection, country identification, number type classification
 - **Performance Maintained**: Same enterprise-scale optimizations apply to both email and phone validation
+- **Latest Fix**: Resolved database field mapping errors for phone validation - all phone validation functions now work correctly
 
 ## User Preferences
 

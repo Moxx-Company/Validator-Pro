@@ -496,9 +496,9 @@ When you're done, click "Start Validation" below.
                         formatted_national=result.formatted_national,
                         country_code=result.country_code,
                         country_name=result.country_name,
-                        carrier_name=result.carrier_name,
+                        carrier=result.carrier_name,
                         number_type=result.number_type,
-                        timezones=json.dumps(result.timezones) if result.timezones else None,
+                        timezone=json.dumps(result.timezones) if result.timezones else None,
                         error_message=result.error_message,
                         validation_time=0.1  # Phone validation is fast
                     )
