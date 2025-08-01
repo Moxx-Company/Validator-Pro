@@ -119,7 +119,7 @@ class EmailValidatorBot:
             elif data.startswith(('sub_', 'pay_', 'subscription')):
                 await self.subscription_handler.handle_callback(update, context)
             
-            elif data.startswith(('validate_', 'upload_', 'job_', 'download_', 'details_', 'recent_jobs')):
+            elif data.startswith(('validate_', 'upload_', 'job_', 'download_', 'details_', 'recent_jobs', 'enter_')):
                 await self.validation_handler.handle_callback(update, context)
             
             elif data.startswith(('dashboard', 'usage_', 'activity_')):
