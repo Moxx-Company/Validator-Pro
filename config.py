@@ -32,20 +32,8 @@ def get_webhook_url():
     if custom_webhook:
         return custom_webhook
     
-    # Use permanent deployment URL as priority
-    permanent_url = "https://verifyemailphone.replit.app/webhook/blockbee"
-    
-    # For development, use current domain if available
-    domains = os.getenv('REPLIT_DOMAINS', '')
-    is_development = domains and 'janeway.replit.dev' in domains
-    
-    if is_development:
-        # Use development domain for testing
-        primary_domain = domains.split(',')[0]
-        return f"https://{primary_domain}/webhook/blockbee"
-    
-    # Always use permanent URL for production/deployment
-    return permanent_url
+    # Since deployed, always use permanent production URL
+    return "https://verifyemailphone.replit.app/webhook/blockbee"
 
 BLOCKBEE_WEBHOOK_URL = get_webhook_url()
 
