@@ -55,7 +55,16 @@ class PhoneValidator:
         return types.get(number_type, "Unknown")
     
     def validate_single(self, phone_number: str, default_region: str = None) -> PhoneValidationResult:
-        """Validate a single phone number"""
+        """Validate a single phone number with timeout protection"""
+        import signal
+        
+        def timeout_handler(signum, frame):
+            raise TimeoutError("Phone validation timed out")
+        
+        # Set timeout for individual phone validation (5 seconds max)
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(5)
+        
         try:
             # Clean the input first
             phone_number = phone_number.strip()
@@ -132,6 +141,12 @@ class PhoneValidator:
                 is_valid=False,
                 error_message=f"Cannot parse number: {str(e)}"
             )
+        except TimeoutError:
+            return PhoneValidationResult(
+                number=phone_number,
+                is_valid=False,
+                error_message="Phone validation timeout - number took too long to process"
+            )
         except Exception as e:
             logger.error(f"Error validating phone {phone_number}: {e}")
             return PhoneValidationResult(
@@ -139,9 +154,12 @@ class PhoneValidator:
                 is_valid=False,
                 error_message=f"Validation error: {str(e)}"
             )
+        finally:
+            # Always clear the alarm
+            signal.alarm(0)
     
     async def validate_batch_async(self, phone_numbers: List[str], default_region: str = None) -> List[PhoneValidationResult]:
-        """Validate a batch of phone numbers asynchronously"""
+        """Validate a batch of phone numbers asynchronously with timeout protection"""
         loop = asyncio.get_running_loop()
         
         # Create tasks for concurrent validation
@@ -155,9 +173,39 @@ class PhoneValidator:
             )
             tasks.append(task)
         
-        # Wait for all validations to complete
-        results = await asyncio.gather(*tasks)
-        return results
+        # Wait for all validations to complete with timeout protection
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*tasks, return_exceptions=True), 
+                timeout=120.0  # 2 minute timeout for batch
+            )
+            
+            # Handle any exceptions in results
+            final_results = []
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    # Create error result for failed validation
+                    error_result = PhoneValidationResult(
+                        number=phone_numbers[i],
+                        is_valid=False,
+                        error_message=f"Validation timeout or error: {str(result)}"
+                    )
+                    final_results.append(error_result)
+                else:
+                    final_results.append(result)
+            
+            return final_results
+            
+        except asyncio.TimeoutError:
+            # If entire batch times out, return error results for all
+            logger.error(f"Phone validation batch timed out for {len(phone_numbers)} numbers")
+            return [
+                PhoneValidationResult(
+                    number=number,
+                    is_valid=False,
+                    error_message="Batch validation timeout - number took too long to process"
+                ) for number in phone_numbers
+            ]
     
     def extract_phone_numbers(self, text: str, default_region: str = None) -> List[str]:
         """Extract phone numbers from text"""
