@@ -41,7 +41,7 @@ This is a comprehensive Telegram bot called Validator Pro that provides both bul
 - **DATABASE SCHEMA UPDATE (Latest)**: Added trial_activated column to users table for persistent trial state management
 - **WEBHOOK CRITICAL FIX (Latest)**: Fixed BlockBee webhook handler to return "*ok*" instead of JSON response as required by BlockBee API documentation - webhook now properly activates subscriptions and sends notifications when payments are confirmed
 - **PAYMENT WEBHOOK ISSUE IDENTIFIED**: BlockBee webhook may not trigger if webhook URL changes after payment address creation - manual testing confirmed webhook system works perfectly, issue is BlockBee not calling the webhook endpoint
-- **PAYMENT TOLERANCE ADDED (Latest)**: Webhook now accepts payments within $3 of expected amount (either less or more) to handle cryptocurrency price fluctuations - logs warning for differences over $3 but still activates subscription
+- **PAYMENT TOLERANCE UPDATED (Latest)**: Webhook accepts any overpayment amount and underpayments within $3 tolerance - designed to handle cryptocurrency price fluctuations where users might pay slightly less or significantly more
 
 ## User Preferences
 

@@ -82,19 +82,25 @@ def create_webhook_app():
                     # Return *ok* even for errors
                     return "*ok*", 200
                 
-                # Check if payment amount is within $3 tolerance
+                # Check payment amount tolerance
                 payment_amount = float(data.get('price', 0))
                 expected_amount = float(subscription.amount_usd)
-                amount_difference = abs(payment_amount - expected_amount)
                 
-                if amount_difference > 3.0:
-                    logger.warning(f"Payment amount ${payment_amount} differs from expected ${expected_amount} by more than $3")
-                    # Still accept the payment but log the difference
+                # Only apply $3 tolerance when payment is less than expected
+                if payment_amount < expected_amount:
+                    shortage = expected_amount - payment_amount
+                    if shortage > 3.0:
+                        logger.warning(f"Payment ${payment_amount} is ${shortage:.2f} less than expected ${expected_amount} (exceeds $3 tolerance)")
+                        # Still accept the payment but log the warning
+                    else:
+                        logger.info(f"Payment ${payment_amount} is ${shortage:.2f} less than expected ${expected_amount} (within $3 tolerance)")
+                elif payment_amount > expected_amount:
+                    overage = payment_amount - expected_amount
+                    logger.info(f"Payment ${payment_amount} is ${overage:.2f} more than expected ${expected_amount} (overpayment accepted)")
+                else:
+                    logger.info(f"Payment ${payment_amount} matches expected amount exactly")
                 
-                logger.info(f"Payment amount: ${payment_amount}, Expected: ${expected_amount}, Difference: ${amount_difference}")
-                
-                # Always activate subscription regardless of amount difference (within reason)
-                # This handles cryptocurrency price fluctuations
+                # Always activate subscription - accept any overpayment, and underpayments within $3
                 
                 # Get the user's Telegram chat ID for notifications
                 from models import User
