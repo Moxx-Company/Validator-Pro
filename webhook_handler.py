@@ -211,6 +211,27 @@ You can now validate unlimited emails and phone numbers!"""
             'timestamp': datetime.utcnow().isoformat()
         })
     
+    @app.route('/webhook/logs', methods=['GET'])
+    def webhook_logs():
+        """Show recent webhook activity"""
+        from models import Subscription
+        with SessionLocal() as db:
+            pending_subs = db.query(Subscription).filter(
+                Subscription.status == 'pending'
+            ).order_by(Subscription.created_at.desc()).limit(5).all()
+            
+            return jsonify({
+                'pending_subscriptions': [
+                    {
+                        'id': s.id,
+                        'user_id': s.user_id,
+                        'address': s.payment_address,
+                        'currency': s.payment_currency_crypto,
+                        'created': s.created_at.isoformat() if s.created_at else None
+                    } for s in pending_subs
+                ]
+            })
+    
     return app
 
 if __name__ == '__main__':
