@@ -87,9 +87,7 @@ def create_webhook_app():
                     # Return ok even for errors
                     return "ok", 200
                 
-                if not subscription:
-                    logger.error(f"No subscription found to activate for address {payment_address}")
-                    return "ok", 200
+
                 
                 # Check payment amount tolerance
                 payment_amount = float(data.get('price', 0))
@@ -111,13 +109,10 @@ def create_webhook_app():
                 
                 # Always activate subscription - accept any overpayment, and underpayments within $3
                 
-                # Get the user's Telegram chat ID for notifications
+                # Get the user's Telegram chat ID from subscription
                 from models import User
-                if user_id:
-                    user = db.query(User).filter(User.id == int(user_id)).first()
-                    telegram_chat_id = user.telegram_id if user else int(user_id)
-                else:
-                    telegram_chat_id = 0
+                user = db.query(User).filter(User.id == subscription.user_id).first()
+                telegram_chat_id = user.telegram_id if user else None
                 
                 # Activate subscription (already verified subscription exists above)
                 if subscription:
