@@ -11,6 +11,7 @@ from handlers.start import StartHandler
 from handlers.subscription import SubscriptionHandler  
 from handlers.validation import ValidationHandler
 from handlers.dashboard import DashboardHandler
+from handlers.admin import AdminHandler
 from keyboards import Keyboards
 from database import init_database
 from webhook_handler import create_webhook_app
@@ -36,11 +37,13 @@ def setup_handlers(application):
     subscription_handler = SubscriptionHandler()
     validation_handler = ValidationHandler()
     dashboard_handler = DashboardHandler()
+    admin_handler = AdminHandler()
     
     # Command handlers
     application.add_handler(CommandHandler("start", start_handler.handle_start))
     application.add_handler(CommandHandler("dashboard", dashboard_handler.show_dashboard))
     application.add_handler(CommandHandler("subscription", subscription_handler.show_subscription_menu))
+    application.add_handler(CommandHandler("admin", admin_handler.handle_admin_command))
     
     # Callback query handler
     async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -51,6 +54,8 @@ def setup_handlers(application):
         # Route callbacks to appropriate handlers
         if data.startswith(('validate_', 'upload_', 'job_', 'download_', 'details_', 'recent_jobs', 'enter_', 'start_validation', 'start_phone_validation')):
             await validation_handler.handle_callback(update, context)
+        elif data.startswith(('admin_')):
+            await admin_handler.handle_callback(update, context)
         elif data.startswith(('start_', 'onboard_', 'main_menu')):
             await start_handler.handle_callback(update, context)
         elif data.startswith(('sub_', 'pay_', 'subscription')) or data == 'subscribe':
@@ -65,7 +70,9 @@ def setup_handlers(application):
     
     async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_data = context.user_data
-        if user_data.get('waiting_for_emails'):
+        if user_data.get('waiting_for_broadcast'):
+            await admin_handler.handle_broadcast_input(update, context)
+        elif user_data.get('waiting_for_emails'):
             await validation_handler.handle_email_input(update, context)
         elif user_data.get('waiting_for_phones'):
             await validation_handler.handle_phone_input(update, context)

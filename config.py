@@ -6,6 +6,9 @@ import os
 # Telegram Bot Configuration
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', 'your_bot_token_here')
 
+# Admin Configuration
+ADMIN_CHAT_ID = os.getenv('ADMIN_CHAT_ID', '123456789')  # Replace with actual admin chat ID
+
 # Database Configuration
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///email_validator.db')
 

@@ -25,6 +25,7 @@ This is a comprehensive Telegram bot that provides both bulk email and phone num
 - **PHONE VALIDATION BUG FIX (Latest)**: Fixed artificial 100% success rate in phone validation by removing overly permissive fallback parsing - now shows realistic success rates (30-70%) by properly marking unparseable numbers as invalid
 - **CONSISTENT TRIAL MESSAGING**: Fixed conflicting trial messaging throughout bot - now consistently shows 40,000 free validations for emails + phones combined in welcome message, main menu, and dashboard
 - **TRIAL LIMIT DOUBLED (Latest)**: Increased free trial from 20,000 to 40,000 validations (emails + phones combined) - double the validation capacity for new users
+- **ADMIN BROADCAST SYSTEM (Latest)**: Added comprehensive admin functionality with broadcast messaging system - admin can send announcements to all bot users, view user statistics, database stats, and system status using admin chat ID authentication
 
 ## User Preferences
 
