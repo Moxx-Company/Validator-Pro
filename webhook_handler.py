@@ -27,80 +27,69 @@ def create_webhook_app():
         """Additional health check endpoint"""
         return jsonify({'status': 'ok'}), 200
     
-    @app.route('/webhook/blockbee', methods=['POST'])
+    @app.route('/webhook/blockbee', methods=['POST', 'GET'])
     @app.route('/webhook/blockbee/<user_id>/<currency>/<amount_usd>', methods=['POST'])
     def handle_blockbee_webhook(user_id=None, currency=None, amount_usd=None):
         """Handle BlockBee payment confirmations"""
         try:
             # Log all webhook calls
             logger.info("=== BlockBee Webhook Received ===")
+            logger.info(f"Method: {request.method}")
             logger.info(f"Path params: user_id={user_id}, currency={currency}, amount_usd={amount_usd}")
-            logger.info(f"Query params: {request.args}")
+            logger.info(f"Query params: {dict(request.args)}")
             logger.info(f"Headers: {dict(request.headers)}")
             
-            data = request.get_json()
-            logger.info(f"Body data: {data}")
+            # BlockBee sends data as GET parameters by default
+            if request.method == 'GET':
+                data = dict(request.args)
+            else:
+                data = request.get_json() or {}
             
-            # Extract payment information from URL path or query params
-            if not user_id:
-                user_id = request.args.get('user_id')
-            if not currency:
-                currency = request.args.get('currency')
-            if not amount_usd:
-                amount_usd = request.args.get('amount_usd')
+            logger.info(f"Webhook data: {data}")
             
-            # Log the timestamp parameter for debugging unique callbacks
-            timestamp = request.args.get('t')
-            if timestamp:
-                logger.info(f"Webhook called with timestamp: {timestamp}")
+            # BlockBee sends payment address as 'address_in' in real webhooks
+            payment_address = data.get('address_in') or data.get('address')
             
-            if not all([user_id, currency, amount_usd]):
-                logger.error("Missing required parameters in webhook")
-                # Return *ok* even for errors to prevent retries
-                return "*ok*", 200
+            if not payment_address:
+                logger.error("Missing payment address in webhook data")
+                # Return ok even for errors to prevent retries
+                return "ok", 200
             
             # Verify payment in BlockBee data
             # BlockBee uses string "1" not integer 1
             if str(data.get('status')) != '1':  # 1 means confirmed
                 logger.info(f"Payment not confirmed yet: {data.get('status')}")
-                # Still return *ok* for BlockBee
-                return "*ok*", 200
+                # Still return ok for BlockBee
+                return "ok", 200
             
-            # Update subscription status
+            # Update subscription status - find by payment address
             with SessionLocal() as db:
-                if user_id and currency:
-                    subscription = db.query(Subscription).filter(
-                        Subscription.user_id == int(user_id)
-                    ).filter(
-                        Subscription.status == 'pending'
-                    ).filter(
-                        Subscription.payment_currency_crypto == currency.upper()
-                    ).first()
-                    
-                    if not subscription:
-                        # Check if there's already an active subscription
-                        active_sub = db.query(Subscription).filter(
-                            Subscription.user_id == int(user_id)
-                        ).filter(
-                            Subscription.status == 'active'
-                        ).filter(
-                            Subscription.payment_currency_crypto == currency.upper()
-                        ).first()
-                else:
-                    subscription = None
-                    active_sub = None
-                    
-                    if active_sub:
-                        logger.info(f"Subscription already active for user {user_id}, skipping duplicate notification")
-                        return "*ok*", 200
-                    
-                    logger.error(f"No pending subscription found for user {user_id}")
-                    # Return *ok* even for errors
-                    return "*ok*", 200
+                # Find subscription by payment address
+                subscription = db.query(Subscription).filter(
+                    Subscription.payment_address == payment_address
+                ).filter(
+                    Subscription.status == 'pending'
+                ).first()
                 
                 if not subscription:
-                    logger.error(f"No subscription found to activate for user {user_id}")
-                    return "*ok*", 200
+                    # Check if there's already an active subscription for this address
+                    active_sub = db.query(Subscription).filter(
+                        Subscription.payment_address == payment_address
+                    ).filter(
+                        Subscription.status == 'active'
+                    ).first()
+                    
+                    if active_sub:
+                        logger.info(f"Subscription already active for address {payment_address}, skipping duplicate notification")
+                        return "ok", 200
+                    
+                    logger.error(f"No pending subscription found for address {payment_address}")
+                    # Return ok even for errors
+                    return "ok", 200
+                
+                if not subscription:
+                    logger.error(f"No subscription found to activate for address {payment_address}")
+                    return "ok", 200
                 
                 # Check payment amount tolerance
                 payment_amount = float(data.get('price', 0))
@@ -139,7 +128,7 @@ def create_webhook_app():
                     
                     db.commit()
                     
-                    logger.info(f"Subscription {subscription.id} activated for user {user_id}")
+                    logger.info(f"Subscription {subscription.id} activated for user {subscription.user_id}")
                 
                 # Send notification to user about successful payment
                 try:
@@ -167,20 +156,20 @@ You can now validate unlimited emails and phone numbers!"""
                     })
                     
                     if response.status_code == 200:
-                        logger.info(f"Payment notification sent to user {user_id}")
+                        logger.info(f"Payment notification sent to user {subscription.user_id if subscription else 'unknown'}")
                     else:
                         logger.error(f"Failed to send notification: {response.text}")
                         
                 except Exception as e:
                     logger.error(f"Failed to send payment notification: {e}")
                 
-                # CRITICAL: BlockBee requires exactly "*ok*" response
-                return "*ok*", 200
+                # CRITICAL: BlockBee requires exactly "ok" response (not "*ok*")
+                return "ok", 200
             
         except Exception as e:
             logger.error(f"Error processing BlockBee webhook: {e}")
-            # Still return *ok* to prevent retries
-            return "*ok*", 200
+            # Still return ok to prevent retries
+            return "ok", 200
     
     @app.route('/webhook/blockbee', methods=['GET'])
     def webhook_info():

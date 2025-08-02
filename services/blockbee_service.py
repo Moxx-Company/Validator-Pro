@@ -36,13 +36,10 @@ class BlockBeeService:
             if not blockbee_currency:
                 raise ValueError(f"Unsupported currency: {currency}")
             
-            # Create unique callback URL with timestamp and random component to ensure unique addresses
-            import time
-            import uuid
-            timestamp = int(time.time())
-            unique_id = str(uuid.uuid4())[:8]  # Short unique ID
-            callback_url = f"{self.webhook_url}/{user_id}/{currency}/{amount_usd}?t={timestamp}&uid={unique_id}"
-            logger.info(f"Using unique callback URL: {callback_url}")
+            # Use simple callback URL - BlockBee will add their own parameters
+            # We'll identify the payment by the address when webhook arrives
+            callback_url = self.webhook_url
+            logger.info(f"Using simple callback URL: {callback_url}")
             
             # Request payment address from BlockBee API (no receiving address needed)
             params = {
