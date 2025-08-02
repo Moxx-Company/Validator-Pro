@@ -52,6 +52,11 @@ def create_webhook_app():
                     logger.error(f"No pending subscription found for user {user_id}")
                     return jsonify({'status': 'error', 'message': 'Subscription not found'}), 404
                 
+                # Get the user's Telegram chat ID for notifications
+                from models import User
+                user = db.query(User).filter(User.id == int(user_id)).first()
+                telegram_chat_id = user.telegram_id if user else user_id
+                
                 # Activate subscription
                 subscription.status = 'active'
                 subscription.activated_at = datetime.utcnow()
@@ -82,7 +87,7 @@ You can now validate unlimited emails and phone numbers!"""
                     
                     telegram_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
                     response = requests.post(telegram_url, json={
-                        'chat_id': int(user_id),
+                        'chat_id': int(telegram_chat_id),
                         'text': notification_text,
                         'parse_mode': 'Markdown'
                     })

@@ -35,6 +35,7 @@ This is a comprehensive Telegram bot called Validator Pro that provides both bul
 - **PAYMENT SECURITY UPDATE (Latest)**: Removed all hardcoded test wallet addresses from payment system - now requires proper wallet addresses to be configured via environment variables for security, prevents payments to test addresses
 - **BLOCKBEE INTEGRATION FIX (Latest)**: Fixed payment system to work correctly with BlockBee API - removed wallet address requirement since BlockBee handles wallet generation automatically, removed "Check Payment" button for cleaner interface
 - **WEBHOOK NOTIFICATION SYSTEM (Latest)**: Added automated payment confirmation notifications to users when subscriptions are activated, includes manual webhook testing and troubleshooting for missed BlockBee notifications
+- **NOTIFICATION SYSTEM FIXED (Latest)**: Fixed payment notifications to use correct Telegram chat IDs instead of database user IDs - users now receive automatic payment confirmations when subscriptions activate
 
 ## User Preferences
 
