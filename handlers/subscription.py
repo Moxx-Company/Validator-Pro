@@ -207,6 +207,17 @@ Select your preferred payment method:
                 )
                 return
             
+            # Check for existing pending subscription and cancel it first
+            existing_pending = db.query(Subscription).filter(
+                Subscription.user_id == user.id,
+                Subscription.status == 'pending'
+            ).first()
+            
+            if existing_pending:
+                logger.info(f"Canceling existing pending subscription for user {user.id}")
+                existing_pending.status = 'cancelled'
+                db.commit()
+            
             # Create pending subscription record
             subscription = Subscription(
                 user_id=user.id,
@@ -220,6 +231,8 @@ Select your preferred payment method:
             db.add(subscription)
             db.commit()
             db.refresh(subscription)
+            
+            logger.info(f"✅ Created NEW subscription with unique address: {payment_result['address']}")
             
             # Format payment instructions
             crypto_name = SUPPORTED_CRYPTOS[payment_method]

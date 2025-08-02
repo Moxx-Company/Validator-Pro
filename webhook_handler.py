@@ -49,6 +49,11 @@ def create_webhook_app():
             if not amount_usd:
                 amount_usd = request.args.get('amount_usd')
             
+            # Log the timestamp parameter for debugging unique callbacks
+            timestamp = request.args.get('t')
+            if timestamp:
+                logger.info(f"Webhook called with timestamp: {timestamp}")
+            
             if not all([user_id, currency, amount_usd]):
                 logger.error("Missing required parameters in webhook")
                 # Return *ok* even for errors to prevent retries

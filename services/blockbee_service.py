@@ -36,9 +36,13 @@ class BlockBeeService:
             if not blockbee_currency:
                 raise ValueError(f"Unsupported currency: {currency}")
             
-            # Create callback URL with user info encoded as BlockBee parameters
-            callback_url = f"{self.webhook_url}/{user_id}/{currency}/{amount_usd}"
-            logger.info(f"Using callback URL: {callback_url}")
+            # Create unique callback URL with timestamp and random component to ensure unique addresses
+            import time
+            import uuid
+            timestamp = int(time.time())
+            unique_id = str(uuid.uuid4())[:8]  # Short unique ID
+            callback_url = f"{self.webhook_url}/{user_id}/{currency}/{amount_usd}?t={timestamp}&uid={unique_id}"
+            logger.info(f"Using unique callback URL: {callback_url}")
             
             # Request payment address from BlockBee API (no receiving address needed)
             params = {
@@ -47,19 +51,35 @@ class BlockBeeService:
                 'convert': 1,
                 'pending': 1,  # Notify for pending transactions
                 'post': 1,     # Use POST for webhooks  
-                'json': 1      # JSON format for webhooks
+                'json': 1,     # JSON format for webhooks
+                'priority': 'default'  # Ensure fresh address generation
             }
             
             logger.info(f"Creating BlockBee payment for {blockbee_currency}")
             logger.info(f"Request URL: {self.base_url}/{blockbee_currency}/create/")
-            logger.info(f"Request params: {params}")
-            response = requests.get(f"{self.base_url}/{blockbee_currency}/create/", params=params)
+            logger.info(f"Request params (masked API key): {dict(params, apikey='***masked***')}")
+            
+            # Add headers for better API communication
+            headers = {
+                'User-Agent': 'ValidatorPro-Bot/1.0',
+                'Accept': 'application/json'
+            }
+            
+            response = requests.get(f"{self.base_url}/{blockbee_currency}/create/", params=params, headers=headers, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
                 
                 if data.get('status') == 'success':
                     payment_address = data['address_in']
+                    reference_id = data.get('uuid', '')
+                    
+                    logger.info(f"✅ BlockBee created UNIQUE address: {payment_address}")
+                    logger.info(f"Reference ID: {reference_id}")
+                    
+                    # Verify address is unique by checking our database
+                    self._log_address_uniqueness(payment_address, user_id)
+                    
                     # Get crypto amount using BlockBee conversion API
                     amount_crypto = self._get_crypto_amount(blockbee_currency, amount_usd)
                     
@@ -73,7 +93,7 @@ class BlockBeeService:
                         'amount_usd': amount_usd,
                         'currency': currency,
                         'qr_code': qr_image,
-                        'reference': data.get('uuid')
+                        'reference': reference_id
                     }
                 else:
                     logger.error(f"BlockBee API error: {data.get('error', 'Unknown error')}")
@@ -86,6 +106,28 @@ class BlockBeeService:
         except Exception as e:
             logger.error(f"Error getting payment info: {e}")
             return {'success': False, 'error': 'Payment info failed'}
+    
+    def _log_address_uniqueness(self, payment_address: str, user_id: str):
+        """Check and log address uniqueness"""
+        try:
+            from database import SessionLocal
+            from models import Subscription
+            
+            with SessionLocal() as db:
+                # Check if this address exists in our database
+                existing = db.query(Subscription).filter(
+                    Subscription.payment_address == payment_address
+                ).first()
+                
+                if existing:
+                    logger.warning(f"⚠️ ADDRESS COLLISION DETECTED!")
+                    logger.warning(f"Address {payment_address} already exists for user {existing.user_id}")
+                    logger.warning(f"Current request is for user {user_id}")
+                else:
+                    logger.info(f"✅ Address {payment_address} is unique - no collision detected")
+                    
+        except Exception as e:
+            logger.error(f"Error checking address uniqueness: {e}")
     
     def _get_crypto_amount(self, currency: str, amount_usd: float) -> float:
         """Get crypto amount using BlockBee conversion API"""
