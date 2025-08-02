@@ -20,7 +20,15 @@ logger = logging.getLogger(__name__)
 
 # Database setup
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///payment_system.db')
-engine = create_engine(DATABASE_URL)
+# Configure engine with connection pooling and reliability settings
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=5,
+    max_overflow=10,
+    pool_recycle=300,  # Recycle connections every 5 minutes
+    pool_pre_ping=True,  # Validate connections before use
+    echo=False
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
