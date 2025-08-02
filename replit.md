@@ -29,6 +29,7 @@ This is a comprehensive Telegram bot called Validator Pro that provides both bul
 - **MENU BUTTON COMMANDS (Latest)**: Added /start and /admin commands to Telegram's MenuButtonCommands for easy access - users can now tap the menu button to see available commands directly in their chat interface
 - **ONBOARDING SIMPLIFIED (Latest)**: Removed "Learn More" button from onboarding process - users now see only "Get Started" for cleaner, more direct user experience
 - **REBRANDING TO VALIDATOR PRO (Latest)**: Updated all references from "Email Validator Pro" to "Validator Pro" to better reflect the dual email and phone validation capabilities
+- **DYNAMIC TRIAL LIMITS (Latest)**: Removed all hardcoded trial information from UI - now uses TRIAL_VALIDATION_LIMIT config for consistent 1,000 validation display across onboarding, dashboard, and subscription screens
 
 ## User Preferences
 

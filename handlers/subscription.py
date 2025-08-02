@@ -483,21 +483,22 @@ Just paste the transaction hash as a message.
             )
             return
         
-        from config import TRIAL_EMAIL_LIMIT
+        from config import TRIAL_VALIDATION_LIMIT
         trial_text = f"""
 🎁 **Free Trial Started!**
 
-You now have **{TRIAL_EMAIL_LIMIT} free email validations** to test our service.
+You now have **{TRIAL_VALIDATION_LIMIT:,} free validations** to test our service (emails + phones combined).
 
 **What's included:**
-✅ Full validation (syntax, DNS, MX, SMTP)
+✅ Full email validation (syntax, DNS, MX, SMTP)
+✅ Phone validation (format, carrier, country)
 ✅ Detailed results and reports
 ✅ File upload support
 ✅ No time restrictions
 
-**Ready to validate your first emails?**
+**Ready to start validating?**
 
-Use the "🎯 Validate Emails" button to get started!
+Choose Email or Phone validation to get started!
         """
         
         await update.callback_query.edit_message_text(
@@ -519,7 +520,7 @@ Use the "🎯 Validate Emails" button to get started!
 
 **Pricing:** $9.99/month (30 days)
 **Payment:** Cryptocurrency only
-**Trial:** 20,000 free validations
+**Trial:** 1,000 free validations
 
         """
         

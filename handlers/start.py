@@ -97,7 +97,8 @@ Ready to start validating?
                 days_remaining = active_sub.days_remaining()
                 subscription_status = f"💎 **Active Subscription** ({days_remaining} days remaining)"
             else:
-                trial_remaining = 1000 - user.trial_validations_used
+                from config import TRIAL_VALIDATION_LIMIT
+                trial_remaining = TRIAL_VALIDATION_LIMIT - user.trial_validations_used
                 subscription_status = f"🆓 **Trial:** {trial_remaining} validations remaining (emails + phones)"
             
             menu_text = f"""
@@ -146,22 +147,24 @@ Welcome back, {user.full_name}!
         user.is_onboarded = True
         db.commit()
         
-        onboarding_complete_text = """
+        from config import TRIAL_VALIDATION_LIMIT
+        
+        onboarding_complete_text = f"""
 🎉 **Onboarding Complete!**
 
-You're all set up and ready to start validating emails!
+You're all set up and ready to start validating!
 
 **Your Free Trial:**
-• 50 email validations included
+• {TRIAL_VALIDATION_LIMIT:,} validations included (emails + phones)
 • Full access to all features
-• No time limit on trial usage
+• Test both email and phone validation
 
 **Next Steps:**
-1. Try validating some emails
+1. Choose Email or Phone validation
 2. See our accuracy in action
 3. Subscribe for unlimited access
 
-Let's validate your first emails!
+Ready to validate your data!
         """
         
         query = update.callback_query
