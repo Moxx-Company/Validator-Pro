@@ -5,8 +5,16 @@
 ### Development URL
 Current webhook endpoint: `https://c681cc6d-baff-4eb3-ac8a-6edb35307bf3-00-2ohumvzbpyg2l.janeway.replit.dev/webhook/blockbee`
 
+### Testing Production URL
+To test with the production URL before deployment:
+```bash
+export BLOCKBEE_WEBHOOK_URL="https://verifyemailphone.replit.app/webhook/blockbee"
+```
+
 ### Production Deployment URL
-When deployed via Replit Cloud Run, the webhook URL will automatically update to use the permanent deployment domain.
+**Permanent URL**: `https://verifyemailphone.replit.app/webhook/blockbee`
+
+When deployed via Replit Cloud Run, the webhook URL will automatically use this permanent domain.
 
 ## Webhook URL Configuration Priority
 
