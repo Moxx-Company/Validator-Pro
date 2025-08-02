@@ -32,6 +32,7 @@ This is a comprehensive Telegram bot called Validator Pro that provides both bul
 - **DYNAMIC TRIAL LIMITS (Latest)**: Removed all hardcoded trial information from UI - now uses TRIAL_VALIDATION_LIMIT config for consistent 1,000 validation display across onboarding, dashboard, and subscription screens
 - **VALIDATION HANG PROTECTION (Latest)**: Fixed validation getting stuck by adding timeout protection - bulk validation now has 5-minute total timeout with 15-second per-email limits, improved SMTP timeouts, and better error handling to prevent server crashes
 - **COMPLETE CRASH PROTECTION (Latest)**: Added comprehensive timeout protection to both email AND phone validators - phone validation now has 2-minute batch timeout with 5-second individual limits, both validators handle problematic data gracefully without hanging the bot server
+- **PAYMENT SECURITY UPDATE (Latest)**: Removed all hardcoded test wallet addresses from payment system - now requires proper wallet addresses to be configured via environment variables for security, prevents payments to test addresses
 
 ## User Preferences
 
