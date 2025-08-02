@@ -34,6 +34,7 @@ This is a comprehensive Telegram bot called Validator Pro that provides both bul
 - **COMPLETE CRASH PROTECTION (Latest)**: Added comprehensive timeout protection to both email AND phone validators - phone validation now has 2-minute batch timeout with 5-second individual limits, both validators handle problematic data gracefully without hanging the bot server
 - **PAYMENT SECURITY UPDATE (Latest)**: Removed all hardcoded test wallet addresses from payment system - now requires proper wallet addresses to be configured via environment variables for security, prevents payments to test addresses
 - **BLOCKBEE INTEGRATION FIX (Latest)**: Fixed payment system to work correctly with BlockBee API - removed wallet address requirement since BlockBee handles wallet generation automatically, removed "Check Payment" button for cleaner interface
+- **WEBHOOK NOTIFICATION SYSTEM (Latest)**: Added automated payment confirmation notifications to users when subscriptions are activated, includes manual webhook testing and troubleshooting for missed BlockBee notifications
 
 ## User Preferences
 

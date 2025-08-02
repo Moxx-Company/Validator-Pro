@@ -25,6 +25,35 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Global bot application reference for webhook notifications
+bot_application = None
+
+async def send_payment_notification(user_id: int, subscription_id: int):
+    """Send payment confirmation notification to user"""
+    try:
+        if bot_application:
+            notification_text = f"""
+✅ **Payment Confirmed!**
+
+Your subscription has been activated successfully.
+
+**Order ID:** `{subscription_id}`
+**Status:** Active
+**Duration:** 30 days
+**Features:** Unlimited email & phone validation
+
+You can now validate unlimited emails and phone numbers!
+            """
+            
+            await bot_application.bot.send_message(
+                chat_id=user_id,
+                text=notification_text,
+                parse_mode='Markdown'
+            )
+            logger.info(f"Payment notification sent to user {user_id}")
+    except Exception as e:
+        logger.error(f"Failed to send payment notification: {e}")
+
 def run_webhook_server():
     """Run the Flask webhook server in a separate thread"""
     app = create_webhook_app()
@@ -104,6 +133,11 @@ def main():
         # Start the Telegram bot
         logger.info("Starting Telegram bot...")
         application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+        
+        # Set global bot reference for webhook notifications
+        global bot_application
+        bot_application = application
+        
         setup_handlers(application)
         
         # Set up bot commands menu after application starts

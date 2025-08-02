@@ -36,8 +36,8 @@ class BlockBeeService:
             if not blockbee_currency:
                 raise ValueError(f"Unsupported currency: {currency}")
             
-            # Create callback URL with user info
-            callback_url = f"{self.webhook_url}?user_id={user_id}&currency={currency}&amount_usd={amount_usd}"
+            # Create callback URL with user info encoded as BlockBee parameters
+            callback_url = f"{self.webhook_url}/{user_id}/{currency}/{amount_usd}"
             logger.info(f"Using callback URL: {callback_url}")
             
             # Request payment address from BlockBee API (no receiving address needed)

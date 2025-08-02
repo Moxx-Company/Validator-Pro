@@ -14,7 +14,8 @@ def create_webhook_app():
     app = Flask(__name__)
     
     @app.route('/webhook/blockbee', methods=['POST'])
-    def handle_blockbee_webhook():
+    @app.route('/webhook/blockbee/<user_id>/<currency>/<amount_usd>', methods=['POST'])
+    def handle_blockbee_webhook(user_id=None, currency=None, amount_usd=None):
         """Handle BlockBee payment confirmations"""
         try:
             data = request.get_json()
@@ -22,10 +23,13 @@ def create_webhook_app():
             # Log the webhook data for debugging
             logger.info(f"BlockBee webhook received: {data}")
             
-            # Extract payment information
-            user_id = request.args.get('user_id')
-            currency = request.args.get('currency')
-            amount_usd = request.args.get('amount_usd')
+            # Extract payment information from URL path or query params
+            if not user_id:
+                user_id = request.args.get('user_id')
+            if not currency:
+                currency = request.args.get('currency')
+            if not amount_usd:
+                amount_usd = request.args.get('amount_usd')
             
             if not all([user_id, currency, amount_usd]):
                 logger.error("Missing required parameters in webhook")
@@ -57,6 +61,39 @@ def create_webhook_app():
                 db.commit()
                 
                 logger.info(f"Subscription {subscription.id} activated for user {user_id}")
+                
+                # Send notification to user about successful payment
+                try:
+                    import requests
+                    import json
+                    from config import TELEGRAM_BOT_TOKEN
+                    
+                    # Send direct notification via Telegram API
+                    notification_text = f"""✅ **Payment Confirmed!**
+
+Your subscription has been activated successfully.
+
+**Order ID:** `{subscription.id}`
+**Status:** Active
+**Duration:** 30 days
+**Features:** Unlimited email & phone validation
+
+You can now validate unlimited emails and phone numbers!"""
+                    
+                    telegram_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+                    response = requests.post(telegram_url, json={
+                        'chat_id': int(user_id),
+                        'text': notification_text,
+                        'parse_mode': 'Markdown'
+                    })
+                    
+                    if response.status_code == 200:
+                        logger.info(f"Payment notification sent to user {user_id}")
+                    else:
+                        logger.error(f"Failed to send notification: {response.text}")
+                        
+                except Exception as e:
+                    logger.error(f"Failed to send payment notification: {e}")
                 
                 return jsonify({'status': 'success'}), 200
             
