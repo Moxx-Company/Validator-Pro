@@ -14,26 +14,18 @@ def create_webhook_app():
     app = Flask(__name__)
     
     @app.route('/')
-    def index():
-        return '''
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Validator Pro Bot</title>
-            <style>
-                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-                h1 { color: #0088cc; }
-                p { color: #666; }
-                a { color: #0088cc; text-decoration: none; }
-            </style>
-        </head>
-        <body>
-            <h1>Validator Pro Bot</h1>
-            <p>The bot is running! 🤖</p>
-            <p>Start chatting with <a href="https://t.me/validator_pro_bot">@validator_pro_bot</a></p>
-        </body>
-        </html>
-        '''
+    def health_check():
+        """Health check endpoint for deployment"""
+        return jsonify({
+            'status': 'healthy',
+            'service': 'Validator Pro Bot',
+            'webhook': 'active'
+        }), 200
+    
+    @app.route('/health')
+    def health():
+        """Additional health check endpoint"""
+        return jsonify({'status': 'ok'}), 200
     
     @app.route('/webhook/blockbee', methods=['POST'])
     @app.route('/webhook/blockbee/<user_id>/<currency>/<amount_usd>', methods=['POST'])
@@ -182,4 +174,4 @@ You can now validate unlimited emails and phone numbers!"""
 
 if __name__ == '__main__':
     app = create_webhook_app()
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)

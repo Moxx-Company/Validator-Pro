@@ -57,7 +57,8 @@ You can now validate unlimited emails and phone numbers!
 def run_webhook_server():
     """Run the Flask webhook server in a separate thread"""
     app = create_webhook_app()
-    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+    # Use production-ready settings for deployment
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)
 
 def setup_handlers(application):
     """Setup all bot handlers"""
