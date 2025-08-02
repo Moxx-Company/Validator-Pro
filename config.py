@@ -27,11 +27,30 @@ MAX_FILE_SIZE_MB = 10
 BLOCKBEE_API_KEY = os.getenv('BLOCKBEE_API_KEY', 'your_blockbee_api_key')
 # Build proper HTTPS webhook URL from Replit domains
 def get_webhook_url():
+    # First try custom webhook URL for permanent deployment
+    custom_webhook = os.getenv('BLOCKBEE_WEBHOOK_URL')
+    if custom_webhook:
+        return custom_webhook
+    
+    # Then try Replit domains
     domains = os.getenv('REPLIT_DOMAINS', '')
     if domains:
         # Use the first domain and ensure HTTPS
         primary_domain = domains.split(',')[0]
         return f"https://{primary_domain}/webhook/blockbee"
+    
+    # Check for deployment URL (when deployed to Replit)
+    deployment_url = os.getenv('REPLIT_APP_URL')
+    if deployment_url:
+        return f"{deployment_url}/webhook/blockbee"
+    
+    # Check for REPL_SLUG for deployed apps
+    repl_slug = os.getenv('REPL_SLUG', '')
+    repl_owner = os.getenv('REPL_OWNER', '')
+    if repl_slug and repl_owner:
+        return f"https://{repl_slug}.{repl_owner}.repl.co/webhook/blockbee"
+    
+    # Fallback to generic replit.app domain
     return "https://your-app.replit.app/webhook/blockbee"
 
 BLOCKBEE_WEBHOOK_URL = get_webhook_url()

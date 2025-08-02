@@ -180,10 +180,30 @@ You can now validate unlimited emails and phone numbers!"""
     @app.route('/webhook/blockbee', methods=['GET'])
     def webhook_info():
         """Return webhook information"""
+        from config import BLOCKBEE_WEBHOOK_URL
         return jsonify({
             'status': 'active',
             'webhook': 'BlockBee payment webhook',
-            'accepts': 'POST requests with payment data'
+            'url': BLOCKBEE_WEBHOOK_URL,
+            'accepts': 'POST requests with payment data',
+            'test_url': f"{request.host_url}webhook/test"
+        })
+    
+    @app.route('/webhook/test', methods=['GET', 'POST'])
+    def webhook_test():
+        """Test endpoint for webhook connectivity"""
+        logger.info("=== Webhook Test Called ===")
+        logger.info(f"Method: {request.method}")
+        logger.info(f"Headers: {dict(request.headers)}")
+        if request.method == 'POST':
+            data = request.get_json()
+            logger.info(f"Body: {data}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Webhook test endpoint working',
+            'method': request.method,
+            'timestamp': datetime.utcnow().isoformat()
         })
     
     return app
