@@ -39,6 +39,8 @@ This is a comprehensive Telegram bot called Validator Pro that provides both bul
 - **TRIAL SYSTEM OVERHAUL (Latest)**: Added trial_activated database field to properly track trial status - Start Trial button now works correctly, disappears after activation or subscription, and trial is only available once
 - **CALLBACK ROUTING FIXES (Latest)**: Fixed Activity button responsiveness by correcting callback routing patterns, moved subscription callbacks before generic start_ callbacks to prevent conflicts
 - **DATABASE SCHEMA UPDATE (Latest)**: Added trial_activated column to users table for persistent trial state management
+- **WEBHOOK CRITICAL FIX (Latest)**: Fixed BlockBee webhook handler to return "*ok*" instead of JSON response as required by BlockBee API documentation - webhook now properly activates subscriptions and sends notifications when payments are confirmed
+- **PAYMENT WEBHOOK ISSUE IDENTIFIED**: BlockBee webhook may not trigger if webhook URL changes after payment address creation - manual testing confirmed webhook system works perfectly, issue is BlockBee not calling the webhook endpoint
 
 ## User Preferences
 

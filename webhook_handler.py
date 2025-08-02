@@ -40,10 +40,14 @@ def create_webhook_app():
     def handle_blockbee_webhook(user_id=None, currency=None, amount_usd=None):
         """Handle BlockBee payment confirmations"""
         try:
-            data = request.get_json()
+            # Log all webhook calls
+            logger.info("=== BlockBee Webhook Received ===")
+            logger.info(f"Path params: user_id={user_id}, currency={currency}, amount_usd={amount_usd}")
+            logger.info(f"Query params: {request.args}")
+            logger.info(f"Headers: {dict(request.headers)}")
             
-            # Log the webhook data for debugging
-            logger.info(f"BlockBee webhook received: {data}")
+            data = request.get_json()
+            logger.info(f"Body data: {data}")
             
             # Extract payment information from URL path or query params
             if not user_id:
@@ -55,12 +59,15 @@ def create_webhook_app():
             
             if not all([user_id, currency, amount_usd]):
                 logger.error("Missing required parameters in webhook")
-                return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
+                # Return *ok* even for errors to prevent retries
+                return "*ok*", 200
             
             # Verify payment in BlockBee data
-            if data.get('status') != 1:  # 1 means confirmed
+            # BlockBee uses string "1" not integer 1
+            if str(data.get('status')) != '1':  # 1 means confirmed
                 logger.info(f"Payment not confirmed yet: {data.get('status')}")
-                return jsonify({'status': 'pending'}), 200
+                # Still return *ok* for BlockBee
+                return "*ok*", 200
             
             # Update subscription status
             with SessionLocal() as db:
@@ -72,7 +79,8 @@ def create_webhook_app():
                 
                 if not subscription:
                     logger.error(f"No pending subscription found for user {user_id}")
-                    return jsonify({'status': 'error', 'message': 'Subscription not found'}), 404
+                    # Return *ok* even for errors
+                    return "*ok*", 200
                 
                 # Get the user's Telegram chat ID for notifications
                 from models import User
@@ -122,11 +130,13 @@ You can now validate unlimited emails and phone numbers!"""
                 except Exception as e:
                     logger.error(f"Failed to send payment notification: {e}")
                 
-                return jsonify({'status': 'success'}), 200
+                # CRITICAL: BlockBee requires exactly "*ok*" response
+                return "*ok*", 200
             
         except Exception as e:
             logger.error(f"Error processing BlockBee webhook: {e}")
-            return jsonify({'status': 'error', 'message': 'Internal error'}), 500
+            # Still return *ok* to prevent retries
+            return "*ok*", 200
     
     @app.route('/webhook/blockbee', methods=['GET'])
     def webhook_info():
