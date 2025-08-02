@@ -282,10 +282,16 @@ Welcome to the admin control panel. Choose an action:
         try:
             # Get user statistics
             total_users = db.query(User).count()
-            active_subscriptions = db.query(User).filter(User.subscription_active == True).count()
+            
+            # Get active subscriptions from Subscription table
+            from models import ValidationJob, Subscription
+            from datetime import datetime
+            active_subscriptions = db.query(Subscription).filter(
+                Subscription.expires_at > datetime.now(),
+                Subscription.status == 'active'
+            ).count()
             
             # Get validation statistics
-            from models import ValidationJob
             total_validations = db.query(ValidationJob).count()
             email_validations = db.query(ValidationJob).filter(ValidationJob.validation_type == 'email').count()
             phone_validations = db.query(ValidationJob).filter(ValidationJob.validation_type == 'phone').count()
