@@ -22,11 +22,11 @@ args = "install_dependencies"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Bot Server"
+args = "Payment API Server"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Payment API Server"
+args = "Bot Server"
 
 [[workflows.workflow]]
 name = "Install Dependencies"
@@ -45,22 +45,22 @@ task = "shell.exec"
 args = "uv add python-telegram-bot sqlalchemy pandas openpyxl dnspython asyncio"
 
 [[workflows.workflow]]
-name = "Bot Server"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python main.py"
-waitForPort = 5000
-
-[[workflows.workflow]]
 name = "Payment API Server"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python payment_api.py"
-waitForPort = 5001
+waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Bot Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+waitForPort = 5002
 
 [[ports]]
 localPort = 5000
@@ -69,6 +69,10 @@ externalPort = 80
 [[ports]]
 localPort = 5001
 externalPort = 3000
+
+[[ports]]
+localPort = 5002
+externalPort = 3001
 
 [deployment]
 deploymentTarget = "cloudrun"

@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 
 def create_webhook_app():
-    """Create Flask app for webhook handling"""
+    """Create Flask app for webhook handling (Legacy System)"""
     app = Flask(__name__)
     
     @app.route('/')
@@ -18,8 +18,8 @@ def create_webhook_app():
         """Health check endpoint for deployment"""
         return jsonify({
             'status': 'healthy',
-            'service': 'Validator Pro Bot',
-            'webhook': 'active'
+            'service': 'Validator Pro Bot (Legacy)',
+            'webhook': 'legacy'
         }), 200
     
     @app.route('/health')
@@ -27,10 +27,33 @@ def create_webhook_app():
         """Additional health check endpoint"""
         return jsonify({'status': 'ok'}), 200
     
+    @app.route('/webhook', methods=['POST'])
     @app.route('/webhook/blockbee', methods=['POST', 'GET'])
-    @app.route('/webhook/blockbee/<user_id>/<currency>/<amount_usd>', methods=['POST'])
-    def handle_blockbee_webhook(user_id=None, currency=None, amount_usd=None):
-        """Handle BlockBee payment confirmations"""
+    def redirect_to_new_system():
+        """Redirect webhooks to new Payment API system"""
+        import requests
+        try:
+            # Forward webhook to new payment API system
+            webhook_data = request.get_json() or dict(request.args)
+            
+            # Make request to new system
+            response = requests.post(
+                'http://localhost:5000/webhook',
+                json=webhook_data,
+                timeout=30
+            )
+            
+            logger.info(f"Forwarded webhook to new system: {response.status_code}")
+            return response.text, response.status_code
+            
+        except Exception as e:
+            logger.error(f"Error forwarding webhook to new system: {e}")
+            return "ok", 200  # Always return ok to prevent retries
+    
+    @app.route('/webhook/blockbee/legacy', methods=['POST', 'GET'])
+    @app.route('/webhook/blockbee/legacy/<user_id>/<currency>/<amount_usd>', methods=['POST'])
+    def handle_blockbee_webhook_legacy(user_id=None, currency=None, amount_usd=None):
+        """Handle BlockBee payment confirmations (Legacy System)"""
         try:
             # Log all webhook calls
             logger.info("=== BlockBee Webhook Received ===")

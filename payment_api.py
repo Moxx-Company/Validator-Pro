@@ -438,15 +438,18 @@ def get_user_subscription(user_id):
     finally:
         db.close()
 
+@app.route('/', methods=['GET'])
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
     return jsonify({
         'status': 'healthy',
-        'service': 'BlockBee Payment API',
-        'timestamp': datetime.utcnow().isoformat()
+        'service': 'BlockBee Payment API (Default System)',
+        'timestamp': datetime.utcnow().isoformat(),
+        'port': 5000,
+        'system': 'primary'
     })
 
 if __name__ == '__main__':
     logger.info("Starting BlockBee Payment API server...")
-    app.run(host='0.0.0.0', port=5001, debug=False)
+    app.run(host='0.0.0.0', port=5000, debug=False)

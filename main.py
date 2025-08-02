@@ -55,10 +55,10 @@ You can now validate unlimited emails and phone numbers!
         logger.error(f"Failed to send payment notification: {e}")
 
 def run_webhook_server():
-    """Run the Flask webhook server in a separate thread"""
+    """Run the Flask webhook server in a separate thread (Legacy System)"""
     app = create_webhook_app()
     # Use production-ready settings for deployment
-    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)
+    app.run(host='0.0.0.0', port=5002, debug=False, use_reloader=False, threaded=True)
 
 def setup_handlers(application):
     """Setup all bot handlers"""
