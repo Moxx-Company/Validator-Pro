@@ -80,6 +80,8 @@ Welcome to the admin control panel. Choose an action:
             await self.send_broadcast(update, context)
         elif data == "admin_cancel_broadcast":
             await self.cancel_broadcast(update, context)
+        elif data == "admin_panel":
+            await self.show_admin_panel(update, context)
     
     async def show_broadcast_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show broadcast message menu"""
@@ -177,7 +179,8 @@ Confirm to send this broadcast message?
         await query.edit_message_text("📤 Sending broadcast message to all users...")
         
         # Get all users from database
-        with get_db() as db:
+        db = next(get_db())
+        try:
             users = db.query(User).all()
             total_users = len(users)
             sent_count = 0
@@ -194,6 +197,8 @@ Confirm to send this broadcast message?
                 except Exception as e:
                     logger.warning(f"Failed to send broadcast to user {user.telegram_id}: {e}")
                     failed_count += 1
+        finally:
+            db.close()
         
         # Send completion report
         report_text = f"""
@@ -239,11 +244,42 @@ Confirm to send this broadcast message?
             ]])
         )
     
+    async def show_admin_panel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show main admin panel"""
+        query = update.callback_query
+        
+        admin_text = """
+🔧 **Admin Panel**
+
+Welcome to the admin control panel. Choose an action:
+
+• **📢 Broadcast Message** - Send message to all users
+• **📊 User Statistics** - View user stats and analytics  
+• **🗄️ Database Stats** - View database information
+• **⚙️ System Status** - Check bot system status
+        """
+        
+        keyboard = [
+            [InlineKeyboardButton("📢 Broadcast Message", callback_data="admin_broadcast")],
+            [InlineKeyboardButton("📊 User Statistics", callback_data="admin_stats")],
+            [InlineKeyboardButton("🗄️ Database Stats", callback_data="admin_db_stats")],
+            [InlineKeyboardButton("⚙️ System Status", callback_data="admin_system")]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            admin_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
     async def show_user_statistics(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show user statistics"""
         query = update.callback_query
         
-        with get_db() as db:
+        db = next(get_db())
+        try:
             # Get user statistics
             total_users = db.query(User).count()
             active_subscriptions = db.query(User).filter(User.subscription_active == True).count()
@@ -253,6 +289,8 @@ Confirm to send this broadcast message?
             total_validations = db.query(ValidationJob).count()
             email_validations = db.query(ValidationJob).filter(ValidationJob.validation_type == 'email').count()
             phone_validations = db.query(ValidationJob).filter(ValidationJob.validation_type == 'phone').count()
+        finally:
+            db.close()
         
         stats_text = f"""
 📊 **User Statistics**
@@ -287,13 +325,16 @@ Confirm to send this broadcast message?
         """Show database statistics"""
         query = update.callback_query
         
-        with get_db() as db:
+        db = next(get_db())
+        try:
             # Count records in each table
             from models import ValidationJob, Subscription
             
             users_count = db.query(User).count()
             jobs_count = db.query(ValidationJob).count()
             subscriptions_count = db.query(Subscription).count()
+        finally:
+            db.close()
         
         db_text = f"""
 🗄️ **Database Statistics**
