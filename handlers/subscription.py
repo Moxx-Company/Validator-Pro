@@ -475,7 +475,7 @@ Just paste the transaction hash as a message.
     
     async def start_trial(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session):
         """Start free trial"""
-        if user.trial_emails_used > 0:
+        if user.trial_emails_used > 0 or user.trial_phones_used > 0:
             await update.callback_query.edit_message_text(
                 "You've already started your free trial!",
                 reply_markup=self.keyboards.main_menu()
