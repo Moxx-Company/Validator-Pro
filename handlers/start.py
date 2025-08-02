@@ -243,7 +243,7 @@ How can we help you today?
 • Use international format for phones (+1234567890)
 • Ensure email format is correct
 
-Need more help? Contact our support team!
+Need more help? Contact our support team at @globalservicehelp!
         """
         
         query = update.callback_query
@@ -280,7 +280,7 @@ A: Yes, we support phone numbers from all countries with proper country detectio
 A: Email validation: 15-30 emails/second
 Phone validation: 50+ phones/second
 
-Still have questions? Contact our support team!
+Still have questions? Contact our support team at @globalservicehelp!
         """
         
         query = update.callback_query
@@ -310,7 +310,7 @@ Our support team is here to help you succeed with Validator Pro.
 • Billing questions: Within 6 hours
 
 **How to Reach Us:**
-Send us a message in this chat describing your issue, and our team will respond promptly.
+Contact us directly at @globalservicehelp or send us a message in this chat describing your issue, and our team will respond promptly.
 
 **Include in Your Message:**
 • Description of the problem
