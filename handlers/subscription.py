@@ -56,8 +56,8 @@ Auto-expires, no renewal charges.
                 total_used = emails_used + phones_used
                 trial_remaining = TRIAL_VALIDATION_LIMIT - total_used
                 
-                # Check if trial has been started (any validations used)
-                trial_started = total_used > 0
+                # Check if trial has been started (any validations used OR trial activated)
+                trial_started = total_used > 0 or user.trial_activated
                 
                 menu_text = f"""
 💎 **Subscription**
@@ -71,12 +71,12 @@ Auto-expires, no renewal charges.
 Upgrade for unlimited access!
                 """
             
-            # Determine if trial has been started
-            trial_started = False
+            # Determine if trial has been started (don't show trial button if subscription is active)
+            trial_started = has_active  # If subscription is active, consider trial "started" to hide button
             if not has_active:
                 emails_used = user.trial_emails_used or 0
                 phones_used = user.trial_phones_used or 0
-                trial_started = bool((emails_used + phones_used) > 0)
+                trial_started = bool((emails_used + phones_used) > 0 or user.trial_activated)
             
             if update.message:
                 await update.message.reply_text(
@@ -475,12 +475,16 @@ Just paste the transaction hash as a message.
     
     async def start_trial(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session):
         """Start free trial"""
-        if user.trial_emails_used > 0 or user.trial_phones_used > 0:
+        if user.trial_emails_used > 0 or user.trial_phones_used > 0 or user.trial_activated:
             await update.callback_query.edit_message_text(
                 "You've already started your free trial!",
                 reply_markup=self.keyboards.main_menu()
             )
             return
+        
+        # Mark trial as activated 
+        user.trial_activated = True
+        db.commit()
         
         from config import TRIAL_VALIDATION_LIMIT
         trial_text = f"""

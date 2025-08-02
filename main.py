@@ -89,7 +89,7 @@ def setup_handlers(application):
             await subscription_handler.handle_callback(update, context)
         elif data.startswith(('start_', 'onboard_', 'main_menu')):
             await start_handler.handle_callback(update, context)
-        elif data.startswith(('dashboard', 'usage_', 'activity_')):
+        elif data.startswith(('dashboard', 'usage_', 'recent_activity')):
             await dashboard_handler.handle_callback(update, context)
     
     application.add_handler(CallbackQueryHandler(handle_callback))

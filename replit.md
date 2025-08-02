@@ -36,6 +36,9 @@ This is a comprehensive Telegram bot called Validator Pro that provides both bul
 - **BLOCKBEE INTEGRATION FIX (Latest)**: Fixed payment system to work correctly with BlockBee API - removed wallet address requirement since BlockBee handles wallet generation automatically, removed "Check Payment" button for cleaner interface
 - **WEBHOOK NOTIFICATION SYSTEM (Latest)**: Added automated payment confirmation notifications to users when subscriptions are activated, includes manual webhook testing and troubleshooting for missed BlockBee notifications
 - **NOTIFICATION SYSTEM FIXED (Latest)**: Fixed payment notifications to use correct Telegram chat IDs instead of database user IDs - users now receive automatic payment confirmations when subscriptions activate
+- **TRIAL SYSTEM OVERHAUL (Latest)**: Added trial_activated database field to properly track trial status - Start Trial button now works correctly, disappears after activation or subscription, and trial is only available once
+- **CALLBACK ROUTING FIXES (Latest)**: Fixed Activity button responsiveness by correcting callback routing patterns, moved subscription callbacks before generic start_ callbacks to prevent conflicts
+- **DATABASE SCHEMA UPDATE (Latest)**: Added trial_activated column to users table for persistent trial state management
 
 ## User Preferences
 
