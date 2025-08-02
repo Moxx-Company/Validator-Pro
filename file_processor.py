@@ -6,7 +6,7 @@ import tempfile
 import pandas as pd
 from typing import List, Dict, Tuple, Optional
 from config import MAX_FILE_SIZE_MB, ALLOWED_FILE_EXTENSIONS
-from utils import read_emails_from_file, create_results_csv, format_file_size
+from utils import create_results_csv, format_file_size, is_valid_email_syntax
 import uuid
 
 class FileProcessor:
@@ -41,7 +41,7 @@ class FileProcessor:
         """Process uploaded file and extract emails or phone numbers"""
         try:
             if validation_type == 'email':
-                items = read_emails_from_file(file_path)
+                items = self._read_emails_from_file(file_path)
             else:
                 # Read phone numbers from file
                 items = self._read_phones_from_file(file_path)
@@ -68,6 +68,56 @@ class FileProcessor:
             
         except Exception as e:
             raise Exception(f"Failed to process file: {str(e)}")
+    
+    def _read_emails_from_file(self, file_path: str) -> List[str]:
+        """Read emails from various file formats"""
+        emails = []
+        file_ext = os.path.splitext(file_path)[1].lower()
+        
+        try:
+            if file_ext == '.csv':
+                df = pd.read_csv(file_path)
+                # Try common column names for emails
+                email_columns = ['email', 'Email', 'EMAIL', 'e-mail', 'E-mail']
+                email_column = None
+                
+                for col in email_columns:
+                    if col in df.columns:
+                        email_column = col
+                        break
+                
+                if email_column:
+                    emails = df[email_column].dropna().astype(str).tolist()
+                else:
+                    # If no email column found, try first column
+                    emails = df.iloc[:, 0].dropna().astype(str).tolist()
+                    
+            elif file_ext in ['.xlsx', '.xls']:
+                df = pd.read_excel(file_path)
+                # Similar logic as CSV
+                email_columns = ['email', 'Email', 'EMAIL', 'e-mail', 'E-mail']
+                email_column = None
+                
+                for col in email_columns:
+                    if col in df.columns:
+                        email_column = col
+                        break
+                
+                if email_column:
+                    emails = df[email_column].dropna().astype(str).tolist()
+                else:
+                    emails = df.iloc[:, 0].dropna().astype(str).tolist()
+                    
+            elif file_ext == '.txt':
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    emails = [line.strip() for line in f if line.strip()]
+            
+            # Filter out invalid email formats
+            valid_emails = [email for email in emails if is_valid_email_syntax(email)]
+            return valid_emails
+            
+        except Exception as e:
+            raise Exception(f"Error reading file: {str(e)}")
     
     def _read_phones_from_file(self, file_path: str) -> List[str]:
         """Read phone numbers from various file formats"""

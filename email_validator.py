@@ -1,16 +1,17 @@
 """
 Email validation service with DNS, MX, and SMTP checks
 """
-import re
 import socket
 import smtplib
 import dns.resolver
+import dns.exception
 import asyncio
 import concurrent.futures
 from typing import Dict, List, Tuple, Optional
 import time
 from dataclasses import dataclass
 import json
+from utils import is_valid_email_syntax, extract_domain
 
 @dataclass
 class ValidationResult:
@@ -26,7 +27,7 @@ class ValidationResult:
     validation_time: float
 
 class EmailValidator:
-    def __init__(self, timeout: int = 0.5, max_workers: int = 150):
+    def __init__(self, timeout: float = 0.5, max_workers: int = 150):
         self.timeout = timeout
         self.max_workers = max_workers
         self.dns_resolver = dns.resolver.Resolver()
@@ -38,17 +39,7 @@ class EmailValidator:
         # Configure DNS resolver for maximum speed
         self.dns_resolver.cache = dns.resolver.LRUCache(max_size=1000)
     
-    def validate_syntax(self, email: str) -> bool:
-        """Validate email syntax using regex"""
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        return re.match(pattern, email) is not None
-    
-    def extract_domain(self, email: str) -> Optional[str]:
-        """Extract domain from email"""
-        try:
-            return email.split('@')[1].lower()
-        except (IndexError, AttributeError):
-            return None
+
     
     def check_domain_exists(self, domain: str) -> bool:
         """Check if domain exists using DNS A record lookup with caching"""
@@ -59,7 +50,7 @@ class EmailValidator:
             self.dns_resolver.resolve(domain, 'A')
             self.domain_cache[domain] = True
             return True
-        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.exception.Timeout):
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, Exception):
             self.domain_cache[domain] = False
             return False
         except Exception:
@@ -76,7 +67,7 @@ class EmailValidator:
             result = [str(mx.exchange).rstrip('.') for mx in mx_records]
             self.mx_cache[domain] = result
             return result
-        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.exception.Timeout):
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, Exception):
             self.mx_cache[domain] = []
             return []
         except Exception:
@@ -143,14 +134,14 @@ class EmailValidator:
         
         try:
             # Step 1: Syntax validation
-            result.syntax_valid = self.validate_syntax(email)
+            result.syntax_valid = is_valid_email_syntax(email)
             if not result.syntax_valid:
                 result.error_message = "Invalid email syntax"
                 result.validation_time = time.time() - start_time
                 return result
             
             # Step 2: Extract domain
-            domain = self.extract_domain(email)
+            domain = extract_domain(email)
             if not domain:
                 result.error_message = "Could not extract domain"
                 result.validation_time = time.time() - start_time

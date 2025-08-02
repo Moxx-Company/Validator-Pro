@@ -85,9 +85,7 @@ class SubscriptionManager:
         subscription.activate()
         self.db_session.commit()
     
-    def get_active_subscription(self, user: User) -> Optional[Subscription]:
-        """Get user's active subscription"""
-        return user.get_active_subscription()
+
     
     def check_subscription_expiry(self, user: User) -> Dict[str, Any]:
         """Check subscription expiry status"""

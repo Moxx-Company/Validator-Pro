@@ -56,55 +56,7 @@ def format_duration(seconds: int) -> str:
         minutes = (seconds % 3600) // 60
         return f"{hours}h {minutes}m"
 
-def read_emails_from_file(file_path: str) -> List[str]:
-    """Read emails from various file formats"""
-    emails = []
-    file_ext = os.path.splitext(file_path)[1].lower()
-    
-    try:
-        if file_ext == '.csv':
-            df = pd.read_csv(file_path)
-            # Try common column names for emails
-            email_columns = ['email', 'Email', 'EMAIL', 'e-mail', 'E-mail']
-            email_column = None
-            
-            for col in email_columns:
-                if col in df.columns:
-                    email_column = col
-                    break
-            
-            if email_column:
-                emails = df[email_column].dropna().astype(str).tolist()
-            else:
-                # If no email column found, try first column
-                emails = df.iloc[:, 0].dropna().astype(str).tolist()
-                
-        elif file_ext in ['.xlsx', '.xls']:
-            df = pd.read_excel(file_path)
-            # Similar logic as CSV
-            email_columns = ['email', 'Email', 'EMAIL', 'e-mail', 'E-mail']
-            email_column = None
-            
-            for col in email_columns:
-                if col in df.columns:
-                    email_column = col
-                    break
-            
-            if email_column:
-                emails = df[email_column].dropna().astype(str).tolist()
-            else:
-                emails = df.iloc[:, 0].dropna().astype(str).tolist()
-                
-        elif file_ext == '.txt':
-            with open(file_path, 'r', encoding='utf-8') as f:
-                emails = [line.strip() for line in f if line.strip()]
-        
-        # Filter out invalid email formats
-        valid_emails = [email for email in emails if is_valid_email_syntax(email)]
-        return valid_emails
-        
-    except Exception as e:
-        raise Exception(f"Error reading file: {str(e)}")
+
 
 def create_results_csv(results: List[dict], output_path: str) -> None:
     """Create CSV file with validation results"""
@@ -144,42 +96,4 @@ def validate_crypto_transaction(tx_hash: str, expected_amount: float, currency: 
     # For now, return True as placeholder
     return True
 
-def get_crypto_price(currency: str) -> float:
-    """Get current crypto price in USD"""
-    try:
-        import requests
-        # Map currency names to CoinGecko IDs
-        coin_mapping = {
-            'btc': 'bitcoin',
-            'bitcoin': 'bitcoin',
-            'eth': 'ethereum', 
-            'ethereum': 'ethereum',
-            'ltc': 'litecoin',
-            'litecoin': 'litecoin',
-            'doge': 'dogecoin',
-            'dogecoin': 'dogecoin',
-            'usdt': 'tether',
-            'usdt_trc20': 'tether',
-            'usdt_erc20': 'tether',
-            'trx': 'tron',
-            'tron': 'tron',
-            'bsc': 'binancecoin'
-        }
-        
-        coin_id = coin_mapping.get(currency.lower())
-        if not coin_id:
-            return 1.0
-        
-        response = requests.get(
-            f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd",
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            return data.get(coin_id, {}).get('usd', 1.0)
-        
-        return 1.0
-        
-    except Exception:
-        return 1.0
+
