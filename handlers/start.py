@@ -202,6 +202,8 @@ Welcome to Validator Pro! Here's how to get the most out of our service:
 • Browse FAQ for common questions  
 • Contact support for personalized help
 
+**Direct Support:** @globalservicehelp
+
 How can we help you today?
         """
         

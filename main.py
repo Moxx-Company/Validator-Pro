@@ -85,7 +85,7 @@ def setup_handlers(application):
             await validation_handler.handle_callback(update, context)
         elif data.startswith(('admin_')):
             await admin_handler.handle_callback(update, context)
-        elif data.startswith(('sub_', 'pay_', 'subscription')) or data in ('subscribe', 'start_trial'):
+        elif data.startswith(('sub_', 'pay_')) or data in ('subscription', 'subscribe', 'start_trial'):
             await subscription_handler.handle_callback(update, context)
         elif data.startswith(('dashboard', 'usage_', 'recent_activity')):
             await dashboard_handler.handle_callback(update, context)
