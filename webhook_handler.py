@@ -82,6 +82,20 @@ def create_webhook_app():
                     # Return *ok* even for errors
                     return "*ok*", 200
                 
+                # Check if payment amount is within $3 tolerance
+                payment_amount = float(data.get('price', 0))
+                expected_amount = float(subscription.amount_usd)
+                amount_difference = abs(payment_amount - expected_amount)
+                
+                if amount_difference > 3.0:
+                    logger.warning(f"Payment amount ${payment_amount} differs from expected ${expected_amount} by more than $3")
+                    # Still accept the payment but log the difference
+                
+                logger.info(f"Payment amount: ${payment_amount}, Expected: ${expected_amount}, Difference: ${amount_difference}")
+                
+                # Always activate subscription regardless of amount difference (within reason)
+                # This handles cryptocurrency price fluctuations
+                
                 # Get the user's Telegram chat ID for notifications
                 from models import User
                 user = db.query(User).filter(User.id == int(user_id)).first()
