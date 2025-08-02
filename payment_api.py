@@ -12,8 +12,6 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-import asyncio
-import aiohttp
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -30,16 +28,11 @@ BLOCKBEE_API_KEY = os.getenv('BLOCKBEE_API_KEY', 'your_api_key_here')
 BLOCKBEE_BASE_URL = 'https://api.blockbee.io'
 WEBHOOK_BASE_URL = os.getenv('WEBHOOK_BASE_URL', 'https://verifyemailphone.replit.app')
 
-# Telegram Bot configuration for notifications
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
-TELEGRAM_API_URL = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}'
-
 class PaymentUser(Base):
     __tablename__ = 'payment_users'
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, unique=True, index=True)  # External user ID
-    telegram_chat_id = Column(String, index=True)  # Telegram chat ID
     email = Column(String, unique=True, index=True)
     subscription_expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -51,7 +44,6 @@ class PaymentOrder(Base):
     id = Column(Integer, primary_key=True, index=True)
     order_id = Column(String, unique=True, index=True)
     user_id = Column(String, index=True)
-    telegram_chat_id = Column(String, index=True)  # Telegram chat ID for notifications
     crypto_type = Column(String)  # BTC, USDT, etc.
     amount_fiat = Column(Float)  # Amount in USD
     amount_crypto = Column(Float, nullable=True)  # Amount in crypto
@@ -86,54 +78,6 @@ def get_db():
     """Get database session"""
     return SessionLocal()
 
-async def send_telegram_notification(chat_id: str, order_id: str, subscription_expires: datetime):
-    """Send payment confirmation notification via Telegram"""
-    try:
-        if not TELEGRAM_BOT_TOKEN or not chat_id:
-            logger.warning("Telegram notification skipped - missing bot token or chat ID")
-            return
-        
-        notification_text = f"""
-✅ **Payment Confirmed!**
-
-Your subscription has been activated successfully.
-
-**Order ID:** `{order_id}`
-**Status:** Active
-**Duration:** 30 days
-**Expires:** {subscription_expires.strftime('%Y-%m-%d %H:%M UTC')}
-**Features:** Unlimited email & phone validation
-
-You can now validate unlimited emails and phone numbers!
-        """
-        
-        payload = {
-            'chat_id': chat_id,
-            'text': notification_text.strip(),
-            'parse_mode': 'Markdown'
-        }
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f'{TELEGRAM_API_URL}/sendMessage', json=payload) as response:
-                if response.status == 200:
-                    logger.info(f"Payment notification sent to chat {chat_id}")
-                else:
-                    logger.error(f"Failed to send notification: {response.status}")
-                    
-    except Exception as e:
-        logger.error(f"Failed to send Telegram notification: {e}")
-
-def send_notification_sync(chat_id: str, order_id: str, subscription_expires: datetime):
-    """Synchronous wrapper for sending Telegram notifications"""
-    try:
-        # Create new event loop for this thread
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(send_telegram_notification(chat_id, order_id, subscription_expires))
-        loop.close()
-    except Exception as e:
-        logger.error(f"Error in notification sync wrapper: {e}")
-
 @app.route('/create-payment', methods=['POST'])
 def create_payment():
     """
@@ -142,7 +86,6 @@ def create_payment():
     Expected JSON payload:
     {
         "user_id": "user123",
-        "telegram_chat_id": "123456789",  # Telegram chat ID for notifications
         "crypto_type": "btc",  # or "usdt", "eth", etc.
         "amount_usd": 10.0,
         "email": "user@example.com" (optional)
@@ -153,16 +96,12 @@ def create_payment():
         
         # Validate input
         user_id = data.get('user_id')
-        telegram_chat_id = str(data.get('telegram_chat_id', ''))
         crypto_type = data.get('crypto_type', 'btc').lower()
         amount_usd = float(data.get('amount_usd', 10.0))
         email = data.get('email', '')
         
         if not user_id:
             return jsonify({'error': 'user_id is required'}), 400
-        
-        if not telegram_chat_id:
-            return jsonify({'error': 'telegram_chat_id is required'}), 400
         
         # Generate unique order ID
         order_id = f"order_{uuid.uuid4().hex[:12]}"
@@ -212,21 +151,16 @@ def create_payment():
             # Create or update user
             user = db.query(PaymentUser).filter(PaymentUser.user_id == user_id).first()
             if not user:
-                user = PaymentUser(user_id=user_id, telegram_chat_id=telegram_chat_id, email=email)
+                user = PaymentUser(user_id=user_id, email=email)
                 db.add(user)
-            else:
-                # Update existing user info
-                if telegram_chat_id and telegram_chat_id != user.telegram_chat_id:
-                    user.telegram_chat_id = telegram_chat_id
-                if email and email != user.email:
-                    user.email = email
+            elif email and email != user.email:
+                user.email = email
                 user.updated_at = datetime.utcnow()
             
             # Create payment order
             payment_order = PaymentOrder(
                 order_id=order_id,
                 user_id=user_id,
-                telegram_chat_id=telegram_chat_id,
                 crypto_type=crypto_type.upper(),
                 amount_fiat=amount_usd,
                 amount_crypto=amount_crypto,
@@ -346,19 +280,6 @@ def webhook():
                 user.updated_at = datetime.utcnow()
                 
                 logger.info(f"Activated 30-day subscription for user {user.user_id} until {new_expiry}")
-                
-                # Send Telegram notification
-                if payment_order.telegram_chat_id:
-                    try:
-                        import threading
-                        notification_thread = threading.Thread(
-                            target=send_notification_sync,
-                            args=(payment_order.telegram_chat_id, payment_order.order_id, new_expiry)
-                        )
-                        notification_thread.daemon = True
-                        notification_thread.start()
-                    except Exception as notify_error:
-                        logger.error(f"Failed to start notification thread: {notify_error}")
             
             db.commit()
             logger.info(f"Successfully processed payment confirmation for order {payment_order.order_id}")
