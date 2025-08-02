@@ -24,6 +24,10 @@ args = "install_dependencies"
 task = "workflow.run"
 args = "Bot Server"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Payment API Server"
+
 [[workflows.workflow]]
 name = "Install Dependencies"
 author = "agent"
@@ -49,9 +53,22 @@ task = "shell.exec"
 args = "python main.py"
 waitForPort = 5000
 
+[[workflows.workflow]]
+name = "Payment API Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python payment_api.py"
+waitForPort = 5001
+
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 5001
+externalPort = 3000
 
 [deployment]
 deploymentTarget = "cloudrun"

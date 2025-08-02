@@ -3,6 +3,8 @@
 ## Overview
 Validator Pro is a Telegram bot offering bulk email and phone number validation services with a subscription-based model. It validates emails via DNS, MX record, and SMTP checks, and phone numbers using Google's libphonenumber for carrier detection, country identification, and format validation. The bot supports various file formats (CSV, Excel, TXT), provides detailed validation reports, and features a freemium model with trial usage and paid subscriptions. Its business vision is to provide a reliable, efficient, and user-friendly solution for businesses and individuals needing to verify large lists of contacts, with ambitions to become a leading tool in data hygiene and contact management.
 
+- **BLOCKBEE PAYMENT API BUILT (August 2, 2025)**: Created comprehensive Python REST API for cryptocurrency payments using BlockBee's /pay endpoint - supports BTC, USDT, ETH, LTC with automatic subscription activation, webhook processing, payment tracking, and duplicate prevention. API runs on port 5001 with PostgreSQL database, includes complete test suite, and ready for production deployment with proper error handling and retry safety.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
