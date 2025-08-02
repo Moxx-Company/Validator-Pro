@@ -63,7 +63,7 @@ class StartHandler:
 {WELCOME_MESSAGE}
 
 🎁 **Free Trial:**
-• Get 40,000 FREE validations (emails + phones combined)
+• Get 1,000 FREE validations (emails + phones combined)
 • No credit card required
 • Test both email and phone validation features
 • See the quality of our professional validation
@@ -97,7 +97,7 @@ Ready to start validating?
                 days_remaining = active_sub.days_remaining()
                 subscription_status = f"💎 **Active Subscription** ({days_remaining} days remaining)"
             else:
-                trial_remaining = 40000 - user.trial_validations_used
+                trial_remaining = 1000 - user.trial_validations_used
                 subscription_status = f"🆓 **Trial:** {trial_remaining} validations remaining (emails + phones)"
             
             menu_text = f"""
@@ -136,8 +136,7 @@ Welcome back, {user.full_name}!
             if data == 'start_onboarding':
                 await self.complete_onboarding(update, context, user, db)
             
-            elif data == 'learn_more':
-                await self.show_learn_more(update, context)
+
             
             elif data == 'main_menu':
                 await self.show_main_menu(update, context, user)
@@ -172,43 +171,4 @@ Let's validate your first emails!
             parse_mode='Markdown'
         )
     
-    async def show_learn_more(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Show detailed information about the service"""
-        learn_more_text = f"""
-📊 **About Email Validator Pro**
 
-**What We Do:**
-Our advanced email validation service helps you clean your email lists and improve deliverability for cold email campaigns.
-
-**Validation Process:**
-✅ **Syntax Check** - Proper email format
-✅ **Domain Validation** - Domain exists and is active  
-✅ **MX Record Check** - Mail server is configured
-✅ **SMTP Verification** - Server accepts emails
-
-**Features:**
-🎯 Bulk validation (CSV, Excel, TXT files)
-📊 Detailed validation reports
-📈 Usage statistics and analytics
-⚡ Fast concurrent processing
-🔒 Secure and private (files deleted after 24h)
-
-**Pricing:**
-{SUBSCRIPTION_INFO}
-
-**Perfect For:**
-• Cold email marketers
-• Email list hygiene
-• Newsletter campaigns
-• Lead generation
-• Marketing agencies
-
-Ready to get started?
-        """
-        
-        query = update.callback_query
-        await query.edit_message_text(
-            learn_more_text,
-            reply_markup=self.keyboards.onboarding(),
-            parse_mode='Markdown'
-        )

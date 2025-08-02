@@ -18,8 +18,7 @@ class Keyboards:
     def onboarding():
         """Onboarding keyboard"""
         keyboard = [
-            [InlineKeyboardButton("🚀 Get Started", callback_data="start_onboarding")],
-            [InlineKeyboardButton("ℹ️ Learn More", callback_data="learn_more")]
+            [InlineKeyboardButton("🚀 Get Started", callback_data="start_onboarding")]
         ]
         return InlineKeyboardMarkup(keyboard)
     

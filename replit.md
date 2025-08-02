@@ -27,6 +27,7 @@ This is a comprehensive Telegram bot that provides both bulk email and phone num
 - **TRIAL LIMIT REDUCED (Latest)**: Updated free trial to 1,000 validations (emails + phones combined) for new user onboarding and database reset
 - **ADMIN BROADCAST SYSTEM (Latest)**: Added comprehensive admin functionality with broadcast messaging system - admin can send announcements to all bot users, view user statistics, database stats, and system status using admin chat ID authentication
 - **MENU BUTTON COMMANDS (Latest)**: Added /start and /admin commands to Telegram's MenuButtonCommands for easy access - users can now tap the menu button to see available commands directly in their chat interface
+- **ONBOARDING SIMPLIFIED (Latest)**: Removed "Learn More" button from onboarding process - users now see only "Get Started" for cleaner, more direct user experience
 
 ## User Preferences
 
