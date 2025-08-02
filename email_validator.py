@@ -12,6 +12,7 @@ import time
 from dataclasses import dataclass
 import json
 from utils import is_valid_email_syntax, extract_domain
+from config import SMTP_TEST_EMAIL, SMTP_HELO_DOMAIN
 
 @dataclass
 class ValidationResult:
@@ -90,10 +91,10 @@ class EmailValidator:
             # Phase 2: SMTP handshake with timeout protection
             with smtplib.SMTP(timeout=2.0) as server:  # 2 second timeout
                 server.connect(mx_record, 25)
-                server.helo('validator.com')
+                server.helo(SMTP_HELO_DOMAIN)
                 
                 # Quick MAIL FROM and RCPT TO test
-                server.mail('test@validator.com')
+                server.mail(SMTP_TEST_EMAIL)
                 code, message = server.rcpt(email)
                 
                 # Accept codes: 250 (OK), 251 (forwarded), 252 (cannot verify but will accept)

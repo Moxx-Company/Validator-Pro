@@ -4,27 +4,51 @@ Configuration settings for the email validator bot
 import os
 
 # Telegram Bot Configuration
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', 'your_bot_token_here')
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+if not TELEGRAM_BOT_TOKEN:
+    raise ValueError("TELEGRAM_BOT_TOKEN environment variable is required")
 
 # Admin Configuration
-ADMIN_CHAT_ID = os.getenv('ADMIN_CHAT_ID', '123456789')  # Replace with actual admin chat ID
+ADMIN_CHAT_ID = os.getenv('ADMIN_CHAT_ID')
+if not ADMIN_CHAT_ID:
+    raise ValueError("ADMIN_CHAT_ID environment variable is required")
 
 # Database Configuration
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///email_validator.db')
 
 # Subscription Configuration
-SUBSCRIPTION_PRICE_USD = 9.99
-TRIAL_VALIDATION_LIMIT = 1000  # Combined limit for emails and phones
-TRIAL_EMAIL_LIMIT = 10000  # Keep for backward compatibility
-SUBSCRIPTION_DURATION_DAYS = 30
+SUBSCRIPTION_PRICE_USD = float(os.getenv('SUBSCRIPTION_PRICE_USD', '9.99'))
+TRIAL_VALIDATION_LIMIT = int(os.getenv('TRIAL_VALIDATION_LIMIT', '1000'))  # Combined limit for emails and phones
+TRIAL_EMAIL_LIMIT = int(os.getenv('TRIAL_EMAIL_LIMIT', '10000'))  # Keep for backward compatibility
+SUBSCRIPTION_DURATION_DAYS = int(os.getenv('SUBSCRIPTION_DURATION_DAYS', '30'))
 
 # Email Validation Configuration
-MAX_CONCURRENT_VALIDATIONS = 50
-VALIDATION_TIMEOUT = 10  # seconds
-MAX_FILE_SIZE_MB = 10
+MAX_CONCURRENT_VALIDATIONS = int(os.getenv('MAX_CONCURRENT_VALIDATIONS', '50'))
+VALIDATION_TIMEOUT = int(os.getenv('VALIDATION_TIMEOUT', '10'))  # seconds
+MAX_FILE_SIZE_MB = int(os.getenv('MAX_FILE_SIZE_MB', '10'))
+
+# Email SMTP Configuration
+SMTP_TEST_EMAIL = os.getenv('SMTP_TEST_EMAIL', 'test@validator.com')
+SMTP_HELO_DOMAIN = os.getenv('SMTP_HELO_DOMAIN', 'validator.com')
+
+# Phone Validation Configuration
+DEFAULT_PHONE_REGION = os.getenv('DEFAULT_PHONE_REGION', 'US')
+PHONE_VALIDATION_TIMEOUT = int(os.getenv('PHONE_VALIDATION_TIMEOUT', '5'))
+
+# Rate Limiting Configuration
+RATE_LIMIT_PER_MINUTE = int(os.getenv('RATE_LIMIT_PER_MINUTE', '120'))
+MAX_CONCURRENT_VALIDATIONS_QUEUE = int(os.getenv('MAX_CONCURRENT_VALIDATIONS_QUEUE', '200'))
 
 # BlockBee Configuration
-BLOCKBEE_API_KEY = os.getenv('BLOCKBEE_API_KEY', 'your_blockbee_api_key')
+BLOCKBEE_API_KEY = os.getenv('BLOCKBEE_API_KEY')
+if not BLOCKBEE_API_KEY:
+    raise ValueError("BLOCKBEE_API_KEY environment variable is required")
+
+BLOCKBEE_BASE_URL = os.getenv('BLOCKBEE_BASE_URL', 'https://api.blockbee.io')
+
+# External API URLs
+COINGECKO_API_BASE = os.getenv('COINGECKO_API_BASE', 'https://api.coingecko.com/api/v3')
+TELEGRAM_API_BASE = os.getenv('TELEGRAM_API_BASE', 'https://api.telegram.org')
 # Build proper HTTPS webhook URL from Replit domains
 def get_webhook_url():
     # First try custom webhook URL for manual override
@@ -53,8 +77,8 @@ SUPPORTED_CRYPTOS = {
 ALLOWED_FILE_EXTENSIONS = ['.csv', '.txt', '.xlsx', '.xls']
 RESULTS_EXPIRY_HOURS = 24
 
-# Bot Messages
-WELCOME_MESSAGE = """
+# Bot Messages - Dynamic based on configuration
+WELCOME_MESSAGE = f"""
 🎯 **Validator Pro**
 
 Validate bulk lists with high accuracy.
@@ -65,13 +89,13 @@ Validate bulk lists with high accuracy.
 • Bulk processing (CSV/Excel/TXT)
 • Detailed reports & analytics
 
-📊 **$9.99/month** | 🆓 **1,000 free trials**
+📊 **${SUBSCRIPTION_PRICE_USD}/month** | 🆓 **{TRIAL_VALIDATION_LIMIT:,} free trials**
 
 Ready to start?
 """
 
-SUBSCRIPTION_INFO = """
-💎 **Pro Subscription - $9.99/month**
+SUBSCRIPTION_INFO = f"""
+💎 **Pro Subscription - ${SUBSCRIPTION_PRICE_USD}/month**
 
 **Includes:**
 ✅ Unlimited email & phone validation
@@ -80,5 +104,5 @@ SUBSCRIPTION_INFO = """
 ✅ Carrier & country detection
 ✅ Priority support & analytics
 
-Auto-expires after 30 days.
+Auto-expires after {SUBSCRIPTION_DURATION_DAYS} days.
 """

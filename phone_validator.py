@@ -5,10 +5,12 @@ import phonenumbers
 from phonenumbers import geocoder, carrier, timezone
 from phonenumbers.phonenumberutil import NumberParseException
 import logging
+import signal
 from typing import Dict, List, Optional, Tuple
 import asyncio
 import concurrent.futures
 from dataclasses import dataclass
+from config import DEFAULT_PHONE_REGION, PHONE_VALIDATION_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +63,9 @@ class PhoneValidator:
         def timeout_handler(signum, frame):
             raise TimeoutError("Phone validation timed out")
         
-        # Set timeout for individual phone validation (5 seconds max)
+        # Set timeout for individual phone validation
         signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(5)
+        signal.alarm(PHONE_VALIDATION_TIMEOUT)
         
         try:
             # Clean the input first
@@ -83,15 +85,15 @@ class PhoneValidator:
                 # Only try with the specified default region
                 parsed = phonenumbers.parse(phone_number, default_region)
             else:
-                # Try as US format only (most common)
+                # Try as default region format (most common)
                 try:
-                    parsed = phonenumbers.parse(phone_number, 'US')
+                    parsed = phonenumbers.parse(phone_number, DEFAULT_PHONE_REGION)
                 except NumberParseException:
                     # If US parsing fails, return invalid - don't try multiple regions
                     return PhoneValidationResult(
                         number=phone_number,
                         is_valid=False,
-                        error_message="Invalid phone number format - must include country code or be valid US format"
+                        error_message=f"Invalid phone number format - must include country code or be valid {DEFAULT_PHONE_REGION} format"
                     )
             
             # Check if valid

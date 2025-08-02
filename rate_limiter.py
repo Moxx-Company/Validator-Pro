@@ -71,6 +71,9 @@ class ValidationQueue:
         """Get current queue size"""
         return self.max_concurrent - self.active_validations
 
+# Import configuration values
+from config import RATE_LIMIT_PER_MINUTE, MAX_CONCURRENT_VALIDATIONS_QUEUE
+
 # Global instances for enterprise-level rate limiting
-rate_limiter = RateLimiter(max_requests_per_minute=120)  # 2 requests per second per user
-validation_queue = ValidationQueue(max_concurrent_validations=200)  # 200 concurrent validations
+rate_limiter = RateLimiter(max_requests_per_minute=RATE_LIMIT_PER_MINUTE)
+validation_queue = ValidationQueue(max_concurrent_validations=MAX_CONCURRENT_VALIDATIONS_QUEUE)

@@ -5,6 +5,8 @@ Validator Pro is a Telegram bot offering bulk email and phone number validation 
 
 - **PAYMENT API SET AS DEFAULT SYSTEM (August 2, 2025)**: System 2 (BlockBee Payment API) is now the primary payment system running on port 5000. Features comprehensive cryptocurrency payments (BTC, USDT, ETH, LTC), automatic 30-day subscription activation, Telegram notifications, webhook processing, payment tracking, and duplicate prevention. Legacy system moved to port 5002 with webhook forwarding. Complete end-to-end flow: payment creation → confirmation → subscription activation → user notification.
 
+- **HARDCODED VALUES ELIMINATED (August 2, 2025)**: Removed all hardcoded configuration values from the codebase. All critical settings are now environment variable-based with proper validation. Added comprehensive configuration system with 25+ configurable parameters including API endpoints, timeouts, limits, pricing, and validation settings. Created complete environment variables documentation. System now enforces required variables (TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID, BLOCKBEE_API_KEY) and provides sensible defaults for optional settings.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 

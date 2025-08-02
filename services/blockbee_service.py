@@ -7,14 +7,14 @@ import logging
 import qrcode
 from io import BytesIO
 from typing import Dict, Optional
-from config import BLOCKBEE_API_KEY, BLOCKBEE_WEBHOOK_URL, SUPPORTED_CRYPTOS
+from config import BLOCKBEE_API_KEY, BLOCKBEE_WEBHOOK_URL, SUPPORTED_CRYPTOS, BLOCKBEE_BASE_URL, COINGECKO_API_BASE
 
 logger = logging.getLogger(__name__)
 
 class BlockBeeService:
     def __init__(self):
         self.api_key = BLOCKBEE_API_KEY
-        self.base_url = "https://api.blockbee.io"
+        self.base_url = BLOCKBEE_BASE_URL
         self.webhook_url = BLOCKBEE_WEBHOOK_URL
     
     def create_payment_address(self, currency: str, user_id: str, amount_usd: float) -> Dict:
@@ -279,7 +279,7 @@ class BlockBeeService:
                 return None
             
             response = requests.get(
-                f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd"
+                f"{COINGECKO_API_BASE}/simple/price?ids={coin_id}&vs_currencies=usd"
             )
             
             if response.status_code == 200:

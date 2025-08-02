@@ -33,13 +33,22 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 # BlockBee API configuration
-BLOCKBEE_API_KEY = os.getenv('BLOCKBEE_API_KEY', 'your_api_key_here')
-BLOCKBEE_BASE_URL = 'https://api.blockbee.io'
+BLOCKBEE_API_KEY = os.getenv('BLOCKBEE_API_KEY')
+if not BLOCKBEE_API_KEY:
+    logger.error("BLOCKBEE_API_KEY environment variable is required")
+    raise ValueError("BLOCKBEE_API_KEY environment variable is required")
+
+BLOCKBEE_BASE_URL = os.getenv('BLOCKBEE_BASE_URL', 'https://api.blockbee.io')
 WEBHOOK_BASE_URL = os.getenv('WEBHOOK_BASE_URL', 'https://verifyemailphone.replit.app')
 
 # Telegram Bot configuration
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
-TELEGRAM_API_URL = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}'
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+if not TELEGRAM_BOT_TOKEN:
+    logger.error("TELEGRAM_BOT_TOKEN environment variable is required")
+    raise ValueError("TELEGRAM_BOT_TOKEN environment variable is required")
+
+TELEGRAM_API_BASE = os.getenv('TELEGRAM_API_BASE', 'https://api.telegram.org')
+TELEGRAM_API_URL = f'{TELEGRAM_API_BASE}/bot{TELEGRAM_BOT_TOKEN}'
 
 class PaymentUser(Base):
     __tablename__ = 'payment_users'
