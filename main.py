@@ -6,7 +6,7 @@ import os
 import logging
 import threading
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
-from telegram import Update
+from telegram import Update, BotCommand
 from handlers.start import StartHandler
 from handlers.subscription import SubscriptionHandler  
 from handlers.validation import ValidationHandler
@@ -81,6 +81,14 @@ def setup_handlers(application):
     
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
+async def setup_bot_commands(application):
+    """Set up bot commands in the menu"""
+    commands = [
+        BotCommand("start", "Start the bot and show main menu"),
+        BotCommand("admin", "Access admin panel (admin only)")
+    ]
+    await application.bot.set_my_commands(commands)
+
 def main():
     """Main entry point"""
     try:
@@ -97,6 +105,13 @@ def main():
         logger.info("Starting Telegram bot...")
         application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
         setup_handlers(application)
+        
+        # Set up bot commands menu after application starts
+        async def post_init(app):
+            await setup_bot_commands(app)
+        
+        application.post_init = post_init
+        
         logger.info("Bot started successfully")
         application.run_polling(allowed_updates=Update.ALL_TYPES)
         
