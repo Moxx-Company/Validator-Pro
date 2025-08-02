@@ -5,6 +5,7 @@ Handles crypto payment generation and webhook processing
 import os
 import logging
 import requests
+import asyncio
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Boolean, Text
@@ -27,6 +28,10 @@ Base = declarative_base()
 BLOCKBEE_API_KEY = os.getenv('BLOCKBEE_API_KEY', 'your_api_key_here')
 BLOCKBEE_BASE_URL = 'https://api.blockbee.io'
 WEBHOOK_BASE_URL = os.getenv('WEBHOOK_BASE_URL', 'https://verifyemailphone.replit.app')
+
+# Telegram Bot configuration
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
+TELEGRAM_API_URL = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}'
 
 class PaymentUser(Base):
     __tablename__ = 'payment_users'
@@ -77,6 +82,55 @@ app = Flask(__name__)
 def get_db():
     """Get database session"""
     return SessionLocal()
+
+def send_telegram_notification(user_id: str, order_id: str, subscription_expires: str):
+    """Send payment confirmation notification via Telegram"""
+    try:
+        if not TELEGRAM_BOT_TOKEN:
+            logger.warning("No Telegram bot token configured - skipping notification")
+            return False
+        
+        # Try to parse user_id as Telegram chat ID
+        try:
+            chat_id = int(user_id)
+        except ValueError:
+            logger.warning(f"User ID '{user_id}' is not a valid Telegram chat ID - skipping notification")
+            return False
+        
+        notification_text = f"""✅ **Payment Confirmed!**
+
+Your cryptocurrency payment has been processed successfully.
+
+**Order ID:** `{order_id}`
+**Status:** Active
+**Subscription:** 30 days
+**Expires:** {subscription_expires[:10]}  
+
+🎉 Your subscription is now active! You can now validate unlimited emails and phone numbers.
+
+Thank you for choosing Validator Pro!"""
+        
+        # Send message via Telegram API
+        telegram_url = f"{TELEGRAM_API_URL}/sendMessage"
+        payload = {
+            'chat_id': chat_id,
+            'text': notification_text,
+            'parse_mode': 'Markdown',
+            'disable_web_page_preview': True
+        }
+        
+        response = requests.post(telegram_url, json=payload, timeout=10)
+        
+        if response.status_code == 200:
+            logger.info(f"Payment notification sent to user {user_id}")
+            return True
+        else:
+            logger.error(f"Failed to send Telegram notification: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error sending Telegram notification: {e}")
+        return False
 
 @app.route('/create-payment', methods=['POST'])
 def create_payment():
@@ -280,6 +334,20 @@ def webhook():
                 user.updated_at = datetime.utcnow()
                 
                 logger.info(f"Activated 30-day subscription for user {user.user_id} until {new_expiry}")
+                
+                # Send Telegram notification to user
+                try:
+                    notification_sent = send_telegram_notification(
+                        user_id=user.user_id,
+                        order_id=payment_order.order_id,
+                        subscription_expires=new_expiry.isoformat()
+                    )
+                    if notification_sent:
+                        logger.info(f"Telegram notification sent to user {user.user_id}")
+                    else:
+                        logger.warning(f"Failed to send Telegram notification to user {user.user_id}")
+                except Exception as notify_error:
+                    logger.error(f"Error sending notification to user {user.user_id}: {notify_error}")
             
             db.commit()
             logger.info(f"Successfully processed payment confirmation for order {payment_order.order_id}")
