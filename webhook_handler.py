@@ -63,19 +63,23 @@ def create_webhook_app():
             
             # Update subscription status
             with SessionLocal() as db:
-                subscription = db.query(Subscription).filter(
-                    Subscription.user_id == int(user_id),
-                    Subscription.status == 'pending',
-                    Subscription.payment_currency_crypto == currency.upper()
-                ).first()
-                
-                if not subscription:
-                    # Check if there's already an active subscription
-                    active_sub = db.query(Subscription).filter(
+                if user_id and currency:
+                    subscription = db.query(Subscription).filter(
                         Subscription.user_id == int(user_id),
-                        Subscription.status == 'active',
+                        Subscription.status == 'pending',
                         Subscription.payment_currency_crypto == currency.upper()
                     ).first()
+                    
+                    if not subscription:
+                        # Check if there's already an active subscription
+                        active_sub = db.query(Subscription).filter(
+                            Subscription.user_id == int(user_id),
+                            Subscription.status == 'active',
+                            Subscription.payment_currency_crypto == currency.upper()
+                        ).first()
+                else:
+                    subscription = None
+                    active_sub = None
                     
                     if active_sub:
                         logger.info(f"Subscription already active for user {user_id}, skipping duplicate notification")
@@ -85,9 +89,13 @@ def create_webhook_app():
                     # Return *ok* even for errors
                     return "*ok*", 200
                 
+                if not subscription:
+                    logger.error(f"No subscription found to activate for user {user_id}")
+                    return "*ok*", 200
+                
                 # Check payment amount tolerance
                 payment_amount = float(data.get('price', 0))
-                expected_amount = float(subscription.amount_usd)
+                expected_amount = float(subscription.amount_usd) if hasattr(subscription, 'amount_usd') and subscription.amount_usd else 0.0
                 
                 # Only apply $3 tolerance when payment is less than expected
                 if payment_amount < expected_amount:
@@ -107,18 +115,22 @@ def create_webhook_app():
                 
                 # Get the user's Telegram chat ID for notifications
                 from models import User
-                user = db.query(User).filter(User.id == int(user_id)).first()
-                telegram_chat_id = user.telegram_id if user else user_id
+                if user_id:
+                    user = db.query(User).filter(User.id == int(user_id)).first()
+                    telegram_chat_id = user.telegram_id if user else int(user_id)
+                else:
+                    telegram_chat_id = 0
                 
-                # Activate subscription
-                subscription.status = 'active'
-                subscription.activated_at = datetime.utcnow()
-                subscription.expires_at = datetime.utcnow() + timedelta(days=30)
-                subscription.transaction_hash = data.get('txid_in', '')
-                
-                db.commit()
-                
-                logger.info(f"Subscription {subscription.id} activated for user {user_id}")
+                # Activate subscription (already verified subscription exists above)
+                if subscription:
+                    subscription.status = 'active'
+                    subscription.activated_at = datetime.utcnow()
+                    subscription.expires_at = datetime.utcnow() + timedelta(days=30)
+                    subscription.transaction_hash = data.get('txid_in', '')
+                    
+                    db.commit()
+                    
+                    logger.info(f"Subscription {subscription.id} activated for user {user_id}")
                 
                 # Send notification to user about successful payment
                 try:
@@ -131,7 +143,7 @@ def create_webhook_app():
 
 Your subscription has been activated successfully.
 
-**Order ID:** `{subscription.id}`
+**Order ID:** `{subscription.id if subscription else 'Unknown'}`
 **Status:** Active
 **Duration:** 30 days
 **Features:** Unlimited email & phone validation
@@ -140,7 +152,7 @@ You can now validate unlimited emails and phone numbers!"""
                     
                     telegram_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
                     response = requests.post(telegram_url, json={
-                        'chat_id': int(telegram_chat_id),
+                        'chat_id': telegram_chat_id,
                         'text': notification_text,
                         'parse_mode': 'Markdown'
                     })

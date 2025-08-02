@@ -78,8 +78,13 @@ def setup_handlers(application):
     # Callback query handler
     async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
+        if not query:
+            return
+            
         await query.answer()
         data = query.data
+        if not data:
+            return
         
         # Route callbacks to appropriate handlers
         if data.startswith(('validate_', 'upload_', 'job_', 'download_', 'details_', 'recent_jobs', 'enter_', 'start_validation', 'start_phone_validation')):
@@ -99,7 +104,7 @@ def setup_handlers(application):
     application.add_handler(MessageHandler(filters.Document.ALL, validation_handler.handle_file_upload))
     
     async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user_data = context.user_data
+        user_data = context.user_data or {}
         if user_data.get('waiting_for_broadcast'):
             await admin_handler.handle_broadcast_input(update, context)
         elif user_data.get('waiting_for_emails'):

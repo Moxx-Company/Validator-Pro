@@ -41,7 +41,11 @@ async def check_and_activate_payment(user_id: int):
         subscription.status = 'active'
         subscription.activated_at = datetime.utcnow()
         subscription.expires_at = datetime.utcnow() + timedelta(days=30)
-        subscription.transaction_hash = 'manual_activation_webhook_failure'
+        # Set transaction hash if the field exists
+        try:
+            subscription.transaction_hash = 'manual_activation_webhook_failure'
+        except AttributeError:
+            logger.warning("transaction_hash field not found in subscription model")
         
         db.commit()
         logger.info(f"Subscription {subscription.id} activated successfully")
@@ -61,11 +65,13 @@ You now have unlimited access to all validation features!
 
 _Note: This was manually activated due to a webhook issue. Your payment was received successfully._"""
             
-            await bot.send_message(
-                chat_id=user.telegram_id,
-                text=notification_text,
-                parse_mode='Markdown'
-            )
+            if user and hasattr(user, 'telegram_id') and user.telegram_id:
+                chat_id = int(str(user.telegram_id))
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=notification_text,
+                    parse_mode='Markdown'
+                )
             logger.info(f"Notification sent to user {user_id}")
         except Exception as e:
             logger.error(f"Failed to send notification: {e}")
