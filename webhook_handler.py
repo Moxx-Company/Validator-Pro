@@ -78,6 +78,17 @@ def create_webhook_app():
                 ).first()
                 
                 if not subscription:
+                    # Check if there's already an active subscription
+                    active_sub = db.query(Subscription).filter(
+                        Subscription.user_id == int(user_id),
+                        Subscription.status == 'active',
+                        Subscription.payment_currency_crypto == currency.upper()
+                    ).first()
+                    
+                    if active_sub:
+                        logger.info(f"Subscription already active for user {user_id}, skipping duplicate notification")
+                        return "*ok*", 200
+                    
                     logger.error(f"No pending subscription found for user {user_id}")
                     # Return *ok* even for errors
                     return "*ok*", 200
