@@ -20,7 +20,8 @@ async def check_and_activate_payment(user_id: int):
     with SessionLocal() as db:
         # Find pending subscription
         subscription = db.query(Subscription).filter(
-            Subscription.user_id == user_id,
+            Subscription.user_id == user_id
+        ).filter(
             Subscription.status == 'pending'
         ).order_by(Subscription.created_at.desc()).first()
         
@@ -41,11 +42,8 @@ async def check_and_activate_payment(user_id: int):
         subscription.status = 'active'
         subscription.activated_at = datetime.utcnow()
         subscription.expires_at = datetime.utcnow() + timedelta(days=30)
-        # Set transaction hash if the field exists
-        try:
-            subscription.transaction_hash = 'manual_activation_webhook_failure'
-        except AttributeError:
-            logger.warning("transaction_hash field not found in subscription model")
+        # Set transaction hash 
+        subscription.transaction_hash = 'manual_activation_webhook_failure'
         
         db.commit()
         logger.info(f"Subscription {subscription.id} activated successfully")
@@ -65,7 +63,7 @@ You now have unlimited access to all validation features!
 
 _Note: This was manually activated due to a webhook issue. Your payment was received successfully._"""
             
-            if user and hasattr(user, 'telegram_id') and user.telegram_id:
+            if user and user.telegram_id:
                 chat_id = int(str(user.telegram_id))
                 await bot.send_message(
                     chat_id=chat_id,

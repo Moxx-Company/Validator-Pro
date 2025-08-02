@@ -65,16 +65,20 @@ def create_webhook_app():
             with SessionLocal() as db:
                 if user_id and currency:
                     subscription = db.query(Subscription).filter(
-                        Subscription.user_id == int(user_id),
-                        Subscription.status == 'pending',
+                        Subscription.user_id == int(user_id)
+                    ).filter(
+                        Subscription.status == 'pending'
+                    ).filter(
                         Subscription.payment_currency_crypto == currency.upper()
                     ).first()
                     
                     if not subscription:
                         # Check if there's already an active subscription
                         active_sub = db.query(Subscription).filter(
-                            Subscription.user_id == int(user_id),
-                            Subscription.status == 'active',
+                            Subscription.user_id == int(user_id)
+                        ).filter(
+                            Subscription.status == 'active'
+                        ).filter(
                             Subscription.payment_currency_crypto == currency.upper()
                         ).first()
                 else:
@@ -95,7 +99,7 @@ def create_webhook_app():
                 
                 # Check payment amount tolerance
                 payment_amount = float(data.get('price', 0))
-                expected_amount = float(subscription.amount_usd) if hasattr(subscription, 'amount_usd') and subscription.amount_usd else 0.0
+                expected_amount = float(subscription.amount_usd) if subscription.amount_usd else 0.0
                 
                 # Only apply $3 tolerance when payment is less than expected
                 if payment_amount < expected_amount:
