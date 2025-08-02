@@ -134,8 +134,8 @@ Upgrade for unlimited access!
                 await self.initiate_payment(update, context, user, payment_method, db)
             
             elif data.startswith('check_payment_'):
-                subscription_id = data.split('_')[-1]
-                await self.check_payment_status(update, context, user, subscription_id, db)
+                # Legacy handler - redirect to subscription menu since check button is removed
+                await self.show_subscription_menu(update, context)
             
             elif data.startswith('confirm_payment_'):
                 await self.confirm_demo_payment(update, context, user, db)
@@ -244,7 +244,6 @@ Select your preferred payment method:
             
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
             keyboard = [
-                [InlineKeyboardButton("🔄 Check Payment", callback_data=f"check_payment_{subscription.id}")],
                 [InlineKeyboardButton("🔙 Cancel", callback_data="subscription")]
             ]
             
