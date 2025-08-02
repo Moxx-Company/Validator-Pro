@@ -131,6 +131,8 @@ def create_webhook_app():
                     import json
                     from config import TELEGRAM_BOT_TOKEN
                     
+                    logger.info(f"Attempting to send notification to chat_id: {telegram_chat_id}")
+                    
                     # Send direct notification via Telegram API
                     notification_text = f"""✅ **Payment Confirmed!**
 
@@ -144,19 +146,23 @@ Your subscription has been activated successfully.
 You can now validate unlimited emails and phone numbers!"""
                     
                     telegram_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+                    logger.info(f"Sending notification to Telegram API...")
+                    
                     response = requests.post(telegram_url, json={
                         'chat_id': telegram_chat_id,
                         'text': notification_text,
                         'parse_mode': 'Markdown'
                     })
                     
+                    logger.info(f"Telegram API response: {response.status_code} - {response.text}")
+                    
                     if response.status_code == 200:
-                        logger.info(f"Payment notification sent to user {subscription.user_id if subscription else 'unknown'}")
+                        logger.info(f"✅ Payment notification sent successfully to user {subscription.user_id if subscription else 'unknown'} (chat_id: {telegram_chat_id})")
                     else:
-                        logger.error(f"Failed to send notification: {response.text}")
+                        logger.error(f"❌ Failed to send notification: {response.text}")
                         
                 except Exception as e:
-                    logger.error(f"Failed to send payment notification: {e}")
+                    logger.error(f"❌ Exception in payment notification: {e}")
                 
                 # CRITICAL: BlockBee requires exactly "ok" response (not "*ok*")
                 return "ok", 200
