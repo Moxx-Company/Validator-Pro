@@ -1,5 +1,5 @@
 """
-Telegram Bot for Bulk Email Validation
+Validator Pro - Telegram Bot for Email & Phone Validation
 Main entry point for the application
 """
 import os

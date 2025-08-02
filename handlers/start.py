@@ -58,7 +58,7 @@ class StartHandler:
     async def start_onboarding(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User):
         """Start the onboarding process"""
         welcome_text = f"""
-👋 **Welcome to Email Validator Pro, {user.first_name or 'there'}!**
+👋 **Welcome to Validator Pro, {user.first_name or 'there'}!**
 
 {WELCOME_MESSAGE}
 
@@ -101,7 +101,7 @@ Ready to start validating?
                 subscription_status = f"🆓 **Trial:** {trial_remaining} validations remaining (emails + phones)"
             
             menu_text = f"""
-🎯 **Email Validator Pro**
+🎯 **Validator Pro**
 
 Welcome back, {user.full_name}!
 

@@ -45,7 +45,7 @@ RESULTS_EXPIRY_HOURS = 24
 
 # Bot Messages
 WELCOME_MESSAGE = """
-🎯 **Email & Phone Validator Pro**
+🎯 **Validator Pro**
 
 Validate bulk lists with high accuracy.
 

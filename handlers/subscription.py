@@ -509,7 +509,7 @@ Use the "🎯 Validate Emails" button to get started!
     async def show_subscription_info(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show detailed subscription information"""
         info_text = """
-💎 **Email & Phone Validator Pro**
+💎 **Validator Pro**
 
 **Benefits:**
 ✅ Unlimited email & phone validation

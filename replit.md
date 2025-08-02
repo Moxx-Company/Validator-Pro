@@ -1,8 +1,8 @@
-# Email & Phone Validator Telegram Bot
+# Validator Pro Telegram Bot
 
 ## Overview
 
-This is a comprehensive Telegram bot that provides both bulk email and phone number validation services with subscription-based pricing. The bot validates emails through DNS, MX record, and SMTP connectivity checks, and validates phone numbers using Google's libphonenumber library with carrier detection, country identification, and format validation. It processes various file formats (CSV, Excel, TXT), and offers a freemium model with trial usage and paid subscriptions. Users can upload email/phone lists, receive detailed validation reports, and manage their subscriptions through an intuitive Telegram interface.
+This is a comprehensive Telegram bot called Validator Pro that provides both bulk email and phone number validation services with subscription-based pricing. The bot validates emails through DNS, MX record, and SMTP connectivity checks, and validates phone numbers using Google's libphonenumber library with carrier detection, country identification, and format validation. It processes various file formats (CSV, Excel, TXT), and offers a freemium model with trial usage and paid subscriptions. Users can upload email/phone lists, receive detailed validation reports, and manage their subscriptions through an intuitive Telegram interface.
 
 ## Recent Changes (August 1, 2025)
 - **Major Feature Expansion**: Successfully integrated phone number validation alongside email validation
@@ -28,6 +28,7 @@ This is a comprehensive Telegram bot that provides both bulk email and phone num
 - **ADMIN BROADCAST SYSTEM (Latest)**: Added comprehensive admin functionality with broadcast messaging system - admin can send announcements to all bot users, view user statistics, database stats, and system status using admin chat ID authentication
 - **MENU BUTTON COMMANDS (Latest)**: Added /start and /admin commands to Telegram's MenuButtonCommands for easy access - users can now tap the menu button to see available commands directly in their chat interface
 - **ONBOARDING SIMPLIFIED (Latest)**: Removed "Learn More" button from onboarding process - users now see only "Get Started" for cleaner, more direct user experience
+- **REBRANDING TO VALIDATOR PRO (Latest)**: Updated all references from "Email Validator Pro" to "Validator Pro" to better reflect the dual email and phone validation capabilities
 
 ## User Preferences
 
