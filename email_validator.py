@@ -75,11 +75,11 @@ class EmailValidator:
             return []
     
     def check_smtp_connectivity(self, mx_record: str, email: str) -> bool:
-        """Ultra-fast SMTP connectivity check"""
+        """Ultra-fast SMTP connectivity check with timeout protection"""
         try:
-            # Phase 1: Quick socket connection test (0.5 second timeout)
+            # Phase 1: Quick socket connection test (1 second timeout)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(0.5)  # Ultra-fast timeout
+            sock.settimeout(1.0)  # Slightly longer timeout for reliability
             
             result = sock.connect_ex((mx_record, 25))
             sock.close()
@@ -87,8 +87,8 @@ class EmailValidator:
             if result != 0:
                 return False
             
-            # Phase 2: Lightning-fast SMTP handshake
-            with smtplib.SMTP(timeout=0.5) as server:
+            # Phase 2: SMTP handshake with timeout protection
+            with smtplib.SMTP(timeout=2.0) as server:  # 2 second timeout
                 server.connect(mx_record, 25)
                 server.helo('validator.com')
                 
@@ -99,7 +99,11 @@ class EmailValidator:
                 # Accept codes: 250 (OK), 251 (forwarded), 252 (cannot verify but will accept)
                 return code in [250, 251, 252]
                 
+        except (socket.timeout, smtplib.SMTPException, ConnectionError, OSError):
+            # Handle specific timeout and connection errors
+            return False
         except Exception:
+            # Handle any other unexpected errors
             return False
     
     def smart_smtp_check(self, mx_server: str, email: str) -> bool:
@@ -115,7 +119,7 @@ class EmailValidator:
             return False
     
     def validate_single_email(self, email: str) -> ValidationResult:
-        """Validate a single email address"""
+        """Validate a single email address with timeout protection"""
         start_time = time.time()
         
         # Initialize result
@@ -131,6 +135,9 @@ class EmailValidator:
             error_message=None,
             validation_time=0.0
         )
+        
+        # Add maximum validation time protection
+        max_validation_time = 10.0  # 10 seconds max per email
         
         try:
             # Step 1: Syntax validation
@@ -198,7 +205,7 @@ class EmailValidator:
         }
     
     async def validate_bulk_emails(self, emails: List[str], progress_callback=None) -> List[ValidationResult]:
-        """Validate multiple emails concurrently"""
+        """Validate multiple emails concurrently with timeout protection"""
         results = []
         processed = 0
         
@@ -210,14 +217,37 @@ class EmailValidator:
                 for email in emails
             }
             
-            # Process completed tasks
-            for future in concurrent.futures.as_completed(future_to_email):
+            # Process completed tasks with timeout protection
+            for future in concurrent.futures.as_completed(future_to_email, timeout=300):  # 5 minute total timeout
                 try:
-                    result = future.result()
+                    # Get result with per-email timeout
+                    result = future.result(timeout=15)  # 15 second timeout per email
                     results.append(result)
                     processed += 1
                     
                     # Call progress callback if provided
+                    if progress_callback:
+                        progress = int((processed / len(emails)) * 100)
+                        await progress_callback(progress, processed, len(emails))
+                        
+                except concurrent.futures.TimeoutError:
+                    # Handle timeout for individual email
+                    email = future_to_email[future]
+                    error_result = ValidationResult(
+                        email=email,
+                        is_valid=False,
+                        syntax_valid=False,
+                        domain_exists=False,
+                        mx_record_exists=False,
+                        smtp_connectable=False,
+                        domain="",
+                        mx_records=[],
+                        error_message="Validation timeout - email took too long to process",
+                        validation_time=15.0
+                    )
+                    results.append(error_result)
+                    processed += 1
+                    
                     if progress_callback:
                         progress = int((processed / len(emails)) * 100)
                         await progress_callback(progress, processed, len(emails))
