@@ -20,6 +20,7 @@ class User(Base):
     is_onboarded = Column(Boolean, default=False)
     trial_emails_used = Column(Integer, default=0)
     trial_phones_used = Column(Integer, default=0)
+    trial_activated = Column(Boolean, default=False)
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)

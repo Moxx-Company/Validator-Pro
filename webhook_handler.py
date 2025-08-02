@@ -13,6 +13,28 @@ def create_webhook_app():
     """Create Flask app for webhook handling"""
     app = Flask(__name__)
     
+    @app.route('/')
+    def index():
+        return '''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Validator Pro Bot</title>
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                h1 { color: #0088cc; }
+                p { color: #666; }
+                a { color: #0088cc; text-decoration: none; }
+            </style>
+        </head>
+        <body>
+            <h1>Validator Pro Bot</h1>
+            <p>The bot is running! 🤖</p>
+            <p>Start chatting with <a href="https://t.me/validator_pro_bot">@validator_pro_bot</a></p>
+        </body>
+        </html>
+        '''
+    
     @app.route('/webhook/blockbee', methods=['POST'])
     @app.route('/webhook/blockbee/<user_id>/<currency>/<amount_usd>', methods=['POST'])
     def handle_blockbee_webhook(user_id=None, currency=None, amount_usd=None):
