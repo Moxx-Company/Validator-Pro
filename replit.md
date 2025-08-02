@@ -24,7 +24,7 @@ This is a comprehensive Telegram bot that provides both bulk email and phone num
 - **DEVELOPER HANDOVER DOCUMENT**: Created comprehensive 10-page PDF handover document covering complete system architecture, technical implementation, deployment configuration, troubleshooting guide, and operational procedures for seamless knowledge transfer
 - **PHONE VALIDATION BUG FIX (Latest)**: Fixed artificial 100% success rate in phone validation by removing overly permissive fallback parsing - now shows realistic success rates (30-70%) by properly marking unparseable numbers as invalid
 - **CONSISTENT TRIAL MESSAGING**: Fixed conflicting trial messaging throughout bot - now consistently shows 40,000 free validations for emails + phones combined in welcome message, main menu, and dashboard
-- **TRIAL LIMIT DOUBLED (Latest)**: Increased free trial from 20,000 to 40,000 validations (emails + phones combined) - double the validation capacity for new users
+- **TRIAL LIMIT REDUCED (Latest)**: Updated free trial to 1,000 validations (emails + phones combined) for new user onboarding and database reset
 - **ADMIN BROADCAST SYSTEM (Latest)**: Added comprehensive admin functionality with broadcast messaging system - admin can send announcements to all bot users, view user statistics, database stats, and system status using admin chat ID authentication
 - **MENU BUTTON COMMANDS (Latest)**: Added /start and /admin commands to Telegram's MenuButtonCommands for easy access - users can now tap the menu button to see available commands directly in their chat interface
 
