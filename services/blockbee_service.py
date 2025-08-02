@@ -40,18 +40,10 @@ class BlockBeeService:
             callback_url = f"{self.webhook_url}?user_id={user_id}&currency={currency}&amount_usd={amount_usd}"
             logger.info(f"Using callback URL: {callback_url}")
             
-            # Get receiving address (will raise error if not configured)
-            try:
-                receiving_address = self._get_receiving_address(blockbee_currency)
-            except ValueError as e:
-                logger.error(f"Wallet configuration error: {e}")
-                return {'success': False, 'error': f'Payment not available for {currency.upper()}. Wallet address not configured.'}
-            
-            # Request payment address from BlockBee API
+            # Request payment address from BlockBee API (no receiving address needed)
             params = {
                 'callback': callback_url,
                 'apikey': self.api_key,
-                'address': receiving_address,
                 'convert': 1,
                 'pending': 1,  # Notify for pending transactions
                 'post': 1,     # Use POST for webhooks  
@@ -130,24 +122,7 @@ class BlockBeeService:
         }
         return approximate_rates.get(currency, 0.001) * amount_usd
     
-    def _get_receiving_address(self, currency: str) -> str:
-        """Get receiving address for currency from environment variables"""
-        # Get wallet addresses from environment variables for security
-        receiving_addresses = {
-            'btc': os.getenv('BTC_WALLET_ADDRESS', ''),
-            'eth': os.getenv('ETH_WALLET_ADDRESS', ''),
-            'ltc': os.getenv('LTC_WALLET_ADDRESS', ''),
-            'doge': os.getenv('DOGE_WALLET_ADDRESS', ''),
-            'usdt_trc20': os.getenv('USDT_TRC20_WALLET_ADDRESS', ''),
-            'usdt_erc20': os.getenv('USDT_ERC20_WALLET_ADDRESS', ''),
-            'trx': os.getenv('TRX_WALLET_ADDRESS', ''),
-            'bnb': os.getenv('BNB_WALLET_ADDRESS', '')
-        }
-        
-        address = receiving_addresses.get(currency, '')
-        if not address:
-            raise ValueError(f"No receiving wallet address configured for {currency.upper()}. Please set {currency.upper()}_WALLET_ADDRESS environment variable.")
-        return address
+    # Removed _get_receiving_address method - BlockBee handles wallet generation automatically
     
     def get_payment_info(self, address: str, currency: str) -> Dict:
         """Get payment information for an address"""
