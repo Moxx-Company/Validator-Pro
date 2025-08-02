@@ -137,10 +137,20 @@ Welcome back, {user.full_name}!
             if data == 'start_onboarding':
                 await self.complete_onboarding(update, context, user, db)
             
-
-            
             elif data == 'main_menu':
                 await self.show_main_menu(update, context, user)
+            
+            elif data == 'help':
+                await self.show_help_menu(update, context)
+            
+            elif data == 'user_guide':
+                await self.show_user_guide(update, context)
+            
+            elif data == 'faq':
+                await self.show_faq(update, context)
+            
+            elif data == 'contact_support':
+                await self.show_contact_support(update, context)
     
     async def complete_onboarding(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session):
         """Complete the onboarding process"""
@@ -171,6 +181,150 @@ Ready to validate your data!
         await query.edit_message_text(
             onboarding_complete_text,
             reply_markup=self.keyboards.main_menu(),
+            parse_mode='Markdown'
+        )
+    
+    async def show_help_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show help menu"""
+        help_text = """
+❓ **Help & Support**
+
+Welcome to Validator Pro! Here's how to get the most out of our service:
+
+**Quick Start:**
+1. Click 'Start Trial' to get 1,000 free validations
+2. Choose Email or Phone validation
+3. Upload files or enter data manually
+4. Download your detailed results
+
+**Need assistance?**
+• Check our User Guide for detailed instructions
+• Browse FAQ for common questions  
+• Contact support for personalized help
+
+How can we help you today?
+        """
+        
+        query = update.callback_query
+        await query.edit_message_text(
+            help_text,
+            reply_markup=self.keyboards.help_menu(),
+            parse_mode='Markdown'
+        )
+    
+    async def show_user_guide(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show user guide"""
+        guide_text = """
+📖 **User Guide**
+
+**Email Validation:**
+• Checks syntax, DNS, MX records, SMTP connectivity
+• Accepts individual emails or bulk files
+• Returns deliverability status and detailed reports
+
+**Phone Validation:**
+• Validates format and carrier information
+• Detects country and number type
+• Works with international phone numbers
+
+**File Formats Supported:**
+• CSV files (comma-separated)
+• Excel files (.xlsx, .xls)
+• Text files (one per line)
+
+**Results Include:**
+• Validation status (valid/invalid)
+• Detailed error reasons
+• Carrier info (for phones)
+• Downloadable CSV reports
+
+**Tips for Best Results:**
+• Clean your data first
+• Use international format for phones (+1234567890)
+• Ensure email format is correct
+
+Need more help? Contact our support team!
+        """
+        
+        query = update.callback_query
+        await query.edit_message_text(
+            guide_text,
+            reply_markup=self.keyboards.back_to_menu(),
+            parse_mode='Markdown'
+        )
+    
+    async def show_faq(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show frequently asked questions"""
+        faq_text = """
+❓ **Frequently Asked Questions**
+
+**Q: How accurate is the validation?**
+A: Our email validation achieves 95%+ accuracy using real-time SMTP checks. Phone validation uses Google's libphonenumber for industry-standard accuracy.
+
+**Q: What's included in the free trial?**
+A: 1,000 free validations (emails + phones combined) with full access to all features.
+
+**Q: How much does a subscription cost?**
+A: $9.99/month for unlimited validations, paid via cryptocurrency.
+
+**Q: What file formats are supported?**
+A: CSV, Excel (.xlsx/.xls), and plain text files.
+
+**Q: Is my data secure?**
+A: Yes, we use encrypted connections and don't store your validation data permanently.
+
+**Q: Can I validate international phone numbers?**
+A: Yes, we support phone numbers from all countries with proper country detection.
+
+**Q: How long do results take?**
+A: Email validation: 15-30 emails/second
+Phone validation: 50+ phones/second
+
+Still have questions? Contact our support team!
+        """
+        
+        query = update.callback_query
+        await query.edit_message_text(
+            faq_text,
+            reply_markup=self.keyboards.back_to_menu(),
+            parse_mode='Markdown'
+        )
+    
+    async def show_contact_support(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show contact support information"""
+        support_text = """
+💬 **Contact Support**
+
+Our support team is here to help you succeed with Validator Pro.
+
+**Get Help With:**
+• Technical issues or errors
+• Billing and subscription questions
+• Feature requests and suggestions
+• Data validation best practices
+• Bulk processing assistance
+
+**Response Times:**
+• General inquiries: Within 24 hours
+• Technical issues: Within 12 hours
+• Billing questions: Within 6 hours
+
+**How to Reach Us:**
+Send us a message in this chat describing your issue, and our team will respond promptly.
+
+**Include in Your Message:**
+• Description of the problem
+• Steps you've tried
+• Screenshots if helpful
+• Your subscription status
+
+We're committed to providing excellent support for all Validator Pro users!
+        """
+        
+        query = update.callback_query
+        await query.edit_message_text(
+            support_text,
+            reply_markup=self.keyboards.back_to_menu(),
             parse_mode='Markdown'
         )
     
