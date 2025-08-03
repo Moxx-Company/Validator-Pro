@@ -139,8 +139,42 @@ class Keyboards:
         """Actions for completed validation results - mobile optimized"""
         keyboard = [
             [InlineKeyboardButton("📥 Download", callback_data=f"download_{job_id}"), InlineKeyboardButton("📊 Details", callback_data=f"details_{job_id}")],
-            [InlineKeyboardButton("🔁 Validate More", callback_data="validate_emails"), InlineKeyboardButton("🔙 Back", callback_data="main_menu")]
+            [InlineKeyboardButton("📋 History", callback_data="job_history"), InlineKeyboardButton("🔁 Validate More", callback_data="validate_emails")],
+            [InlineKeyboardButton("🔙 Back", callback_data="main_menu")]
         ]
+        return InlineKeyboardMarkup(keyboard)
+    
+    @staticmethod
+    def back_to_job_details(job_id):
+        """Keyboard to go back to job details"""
+        keyboard = [
+            [InlineKeyboardButton("⬅️ Back to Details", callback_data=f"details_{job_id}")],
+            [InlineKeyboardButton("📋 Job History", callback_data="job_history")],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+        ]
+        return InlineKeyboardMarkup(keyboard)
+    
+    @staticmethod
+    def job_history_navigation(page=0, total_pages=1):
+        """Keyboard for job history navigation"""
+        keyboard = []
+        
+        # Navigation buttons
+        nav_row = []
+        if page > 0:
+            nav_row.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"history_page_{page-1}"))
+        if page < total_pages - 1:
+            nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"history_page_{page+1}"))
+        
+        if nav_row:
+            keyboard.append(nav_row)
+            
+        # Page info and main menu
+        keyboard.extend([
+            [InlineKeyboardButton(f"📄 Page {page+1} of {total_pages}", callback_data="noop")],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+        ])
+        
         return InlineKeyboardMarkup(keyboard)
     
     @staticmethod

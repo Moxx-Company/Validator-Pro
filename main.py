@@ -87,7 +87,7 @@ def setup_handlers(application):
             return
         
         # Route callbacks to appropriate handlers
-        if data.startswith(('validate_', 'upload_', 'job_', 'download_', 'details_', 'recent_jobs', 'enter_', 'start_validation', 'start_phone_validation')):
+        if data.startswith(('validate_', 'upload_', 'job_', 'download_', 'details_', 'recent_jobs', 'enter_', 'start_validation', 'start_phone_validation', 'history_page_')) or data == 'job_history':
             await validation_handler.handle_callback(update, context)
         elif data.startswith(('admin_')):
             await admin_handler.handle_callback(update, context)

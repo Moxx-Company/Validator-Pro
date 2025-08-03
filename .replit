@@ -28,6 +28,10 @@ args = "Payment API Server"
 task = "workflow.run"
 args = "Bot Server"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "File Server"
+
 [[workflows.workflow]]
 name = "Install Dependencies"
 author = "agent"
@@ -61,6 +65,15 @@ author = "agent"
 task = "shell.exec"
 args = "python main.py"
 waitForPort = 5002
+
+[[workflows.workflow]]
+name = "File Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python file_server.py"
+waitForPort = 5001
 
 [[ports]]
 localPort = 5000

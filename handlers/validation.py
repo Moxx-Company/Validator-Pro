@@ -19,6 +19,7 @@ from phone_validator import PhoneValidator, PhoneValidationResult
 from file_processor import FileProcessor
 from utils import create_progress_bar, format_duration, format_file_size
 from config import MAX_FILE_SIZE_MB
+from progress_tracker import progress_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,13 @@ class ValidationHandler:
             elif data == 'start_phone_validation':
                 logger.info(f"Processing start_phone_validation callback")
                 await self.start_phone_validation_from_input(update, context)
+            
+            elif data == 'job_history':
+                await self.show_job_history(update, context, user, db, 0)
+            
+            elif data.startswith('history_page_'):
+                page = int(data.split('_')[-1])
+                await self.show_job_history(update, context, user, db, page)
     
     async def show_validation_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, validation_type: str = 'email'):
         """Show validation options for email or phone"""
@@ -475,6 +483,9 @@ When you're done, click "Start Validation" below.
             db.commit()
             db.refresh(job)
             
+            # Start progress tracking
+            progress_tracker.start_job(job.id, len(phone_numbers), 'phone')
+            
             # Update message
             await message.edit_text(
                 f"🔄 Validating {len(phone_numbers)} phone numbers...\n"
@@ -518,30 +529,27 @@ When you're done, click "Start Validation" below.
                 
                 validated_count += len(batch_results)
                 
-                # Update progress
-                progress = int((validated_count / len(phone_numbers)) * 100)
-                elapsed = time.time() - start_time
-                rate = validated_count / elapsed if elapsed > 0 else 0
-                eta = (len(phone_numbers) - validated_count) / rate if rate > 0 else 0
+                # Update progress tracker
+                progress_tracker.update_progress(job.id, validated_count, valid_count)
                 
-                await message.edit_text(
-                    f"📱 Validating phone numbers...\n\n"
-                    f"Progress: {validated_count}/{len(phone_numbers)} ({progress}%)\n"
-                    f"{create_progress_bar(progress)}\n\n"
-                    f"⚡ Speed: {rate:.1f} numbers/second\n"
-                    f"⏱️ ETA: {format_duration(int(eta))}"
-                )
+                # Get formatted progress
+                progress_text = progress_tracker.get_formatted_progress(job.id)
+                
+                await message.edit_text(progress_text)
                 
                 # Commit batch results
                 db.commit()
             
             # Update job completion
             job.status = "completed"
-            job.completed_at = datetime.now()
+            job.completed_at = datetime.utcnow()
             job.processed_items = len(phone_numbers)
             job.valid_items = valid_count
             job.invalid_items = len(phone_numbers) - valid_count
             db.commit()
+            
+            # Complete progress tracking
+            progress_tracker.complete_job(job.id, True)
             
             # Update user usage
             if not user.has_active_subscription():
@@ -686,13 +694,18 @@ When you're done, click "Start Validation" below.
             # Create validation job
             job = ValidationJob(
                 user_id=user.id,
-                total_emails=len(emails),
+                validation_type='email',
                 filename=filename or "Manual Input",
+                total_items=len(emails),
+                total_emails=len(emails),  # For backward compatibility
                 status="processing"
             )
             db.add(job)
             db.commit()
             db.refresh(job)
+            
+            # Start progress tracking
+            progress_tracker.start_job(job.id, len(emails), 'email')
             
             # Update message
             await message.edit_text(
@@ -770,6 +783,7 @@ When you're done, click "Start Validation" below.
                             # Save successful validation result
                             validation_result = ValidationResult(
                                 job_id=job.id,
+                                validation_type='email',
                                 email=result.email,
                                 is_valid=result.is_valid,
                                 syntax_valid=result.syntax_valid,
@@ -808,39 +822,43 @@ When you're done, click "Start Validation" below.
                     logger.error(f"Database commit error: {commit_error}")
                     db.rollback()
                 
-                # Update progress every batch 
-                progress = (validated_count / len(emails)) * 100
-                progress_bar = create_progress_bar(progress)
+                # Update progress tracker
+                results = db.query(ValidationResult).filter(ValidationResult.job_id == job.id).all()
+                current_valid = sum(1 for r in results if r.is_valid)
+                progress_tracker.update_progress(job.id, validated_count, current_valid)
                 
-                # Update UI every batch for better feedback
+                # Update UI with formatted progress
                 try:
-                    elapsed = time.time() - start_time
-                    speed = validated_count / elapsed if elapsed > 0 else 0
-                    eta = (len(emails) - validated_count) / speed if speed > 0 else 0
-                    
-                    await message.edit_text(
-                        f"🔄 Validating emails...\n"
-                        f"Progress: {validated_count}/{len(emails)} ({progress:.1f}%)\n"
-                        f"{progress_bar}\n"
-                        f"Speed: {speed:.1f} emails/sec\n"
-                        f"ETA: {int(eta)}s" if eta < 300 else f"ETA: {int(eta/60)}m",
-                        reply_markup=None
-                    )
+                    progress_text = progress_tracker.get_formatted_progress(job.id)
+                    await message.edit_text(progress_text, reply_markup=None)
                 except Exception as update_error:
                     logger.debug(f"Progress update failed: {update_error}")  # Ignore rate limits
                 
                 # Small delay between batches for stability
                 await asyncio.sleep(0.05)
             
-            # Update job status
+            # Update job status and counts
             job.status = "completed"
             job.completed_at = datetime.utcnow()
+            job.processed_items = len(emails)
+            job.processed_emails = len(emails)  # For backward compatibility
+            
+            # Update valid/invalid counts from database
+            results = db.query(ValidationResult).filter(ValidationResult.job_id == job.id).all()
+            valid_count = sum(1 for r in results if r.is_valid)
+            job.valid_items = valid_count
+            job.valid_emails = valid_count  # For backward compatibility
+            job.invalid_items = len(results) - valid_count
+            job.invalid_emails = len(results) - valid_count  # For backward compatibility
             
             # Update user usage
             if not user.has_active_subscription():
                 user.use_trial_validations('email', len(emails))
             
             db.commit()
+            
+            # Complete progress tracking
+            progress_tracker.complete_job(job.id, True)
             
             # Get results summary
             results = db.query(ValidationResult).filter(ValidationResult.job_id == job.id).all()
@@ -928,7 +946,7 @@ When you're done, click "Start Validation" below.
             )
     
     async def download_results(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, job_id: str, db: Session):
-        """Download validation results as CSV file"""
+        """Generate download link for validation results"""
         try:
             job = db.query(ValidationJob).filter(ValidationJob.id == int(job_id), ValidationJob.user_id == user.id).first()
             if not job:
@@ -947,359 +965,126 @@ When you're done, click "Start Validation" below.
                 )
                 return
             
-            # Sort results: valid first, then invalid
-            valid_results = [r for r in results if r.is_valid]
-            invalid_results = [r for r in results if not r.is_valid]
+            # Generate download link
+            download_url = f"https://verifyemailphone.replit.app/download/{job_id}?user_id={user.id}"
             
-            # For phone validation, group valid numbers by type
-            if results and results[0].validation_type == 'phone':
-                mobile_results = [r for r in valid_results if r.number_type and 'mobile' in r.number_type.lower()]
-                landline_results = [r for r in valid_results if r.number_type and ('fixed' in r.number_type.lower() or 'landline' in r.number_type.lower())]
-                other_valid_results = [r for r in valid_results if r not in mobile_results and r not in landline_results]
-                sorted_results = mobile_results + landline_results + other_valid_results + invalid_results
-            else:
-                sorted_results = valid_results + invalid_results
+            # Create download message
+            validation_type = job.validation_type or 'email'
+            download_text = f"""📁 **Download Ready**
             
-            # Create CSV content
-            import io
-            import csv
+**File:** {job.filename}
+**Type:** {validation_type.title()} Validation Results
+**Format:** CSV
+**Records:** {len(results)}
+
+Click the link below to download your results:
+{download_url}
+
+*Link expires in 24 hours*"""
             
-            output = io.StringIO()
-            writer = csv.writer(output)
-            
-            # Detect validation type
-            is_phone_validation = results[0].validation_type == 'phone' if results else False
-            
-            if is_phone_validation:
-                # Phone validation CSV format
-                writer.writerow(['Phone Number', 'Status', 'International Format', 'National Format', 'Country', 'Carrier', 'Type', 'Error'])
-                
-                # Group valid phones by type
-                mobile_results = [r for r in valid_results if r.number_type and 'mobile' in r.number_type.lower()]
-                landline_results = [r for r in valid_results if r.number_type and ('fixed' in r.number_type.lower() or 'landline' in r.number_type.lower())]
-                other_valid_results = [r for r in valid_results if r not in mobile_results and r not in landline_results]
-                
-                # Add mobile section
-                if mobile_results:
-                    writer.writerow(['=== VALID MOBILE NUMBERS ===', '', '', '', '', '', '', ''])
-                    for result in mobile_results:
-                        writer.writerow([
-                            result.phone_number,
-                            'Valid - Mobile',
-                            result.formatted_international or '',
-                            result.formatted_national or '',
-                            result.country_name or '',
-                            result.carrier or '',
-                            result.number_type or '',
-                            ''
-                        ])
-                
-                # Add landline section
-                if landline_results:
-                    if mobile_results:
-                        writer.writerow(['', '', '', '', '', '', '', ''])  # Empty row
-                    writer.writerow(['=== VALID LANDLINE NUMBERS ===', '', '', '', '', '', '', ''])
-                    for result in landline_results:
-                        writer.writerow([
-                            result.phone_number,
-                            'Valid - Landline',
-                            result.formatted_international or '',
-                            result.formatted_national or '',
-                            result.country_name or '',
-                            result.carrier or '',
-                            result.number_type or '',
-                            ''
-                        ])
-                
-                # Add other valid numbers section
-                if other_valid_results:
-                    if mobile_results or landline_results:
-                        writer.writerow(['', '', '', '', '', '', '', ''])  # Empty row
-                    writer.writerow(['=== OTHER VALID NUMBERS ===', '', '', '', '', '', '', ''])
-                    for result in other_valid_results:
-                        writer.writerow([
-                            result.phone_number,
-                            'Valid - Other',
-                            result.formatted_international or '',
-                            result.formatted_national or '',
-                            result.country_name or '',
-                            result.carrier or '',
-                            result.number_type or '',
-                            ''
-                        ])
-                
-                # Add section marker for invalid phones
-                if invalid_results:
-                    writer.writerow(['', '', '', '', '', '', '', ''])  # Empty row
-                    writer.writerow(['=== INVALID PHONE NUMBERS ===', '', '', '', '', '', '', ''])
-                    for result in invalid_results:
-                        writer.writerow([
-                            result.phone_number,
-                            'Invalid',
-                            '',
-                            '',
-                            '',
-                            '',
-                            '',
-                            result.error_message or 'Failed validation'
-                        ])
-            else:
-                # Email validation CSV format
-                writer.writerow(['Email', 'Status', 'Valid', 'Reason', 'Domain', 'MX Records', 'SMTP Check'])
-                
-                # Add section marker for valid emails
-                if valid_results:
-                    writer.writerow(['=== VALID EMAILS ===', '', '', '', '', '', ''])
-                    for result in valid_results:
-                        writer.writerow([
-                            result.email,
-                            'Valid',
-                            'Yes',
-                            'Valid email - all checks passed',
-                            result.domain or '',
-                            json.loads(result.mx_records)[0] if result.mx_records else '',
-                            'Yes'
-                        ])
-                
-                # Add section marker for invalid emails
-                if invalid_results:
-                    writer.writerow(['', '', '', '', '', '', ''])  # Empty row
-                    writer.writerow(['=== INVALID EMAILS ===', '', '', '', '', '', ''])
-                    for result in invalid_results:
-                        writer.writerow([
-                            result.email,
-                            'Invalid',
-                            'No',
-                            result.error_message or 'Failed validation',
-                            result.domain or '',
-                            json.loads(result.mx_records)[0] if result.mx_records else '',
-                            'Yes' if result.smtp_connectable else 'No'
-                        ])
-            
-            # Convert to bytes
-            csv_content = output.getvalue().encode('utf-8')
-            output.close()
-            
-            # Send file
-            validation_type_name = "phone numbers" if is_phone_validation else "emails" 
-            filename = f"validation_results_{job_id}.csv"
-            await context.bot.send_document(
-                chat_id=update.effective_chat.id,
-                document=io.BytesIO(csv_content),
-                filename=filename,
-                caption=f"📊 Validation results for job #{job_id}\n\n"
-                       f"Total {validation_type_name}: {len(results)}\n"
-                       f"Valid: {sum(1 for r in results if r.is_valid)}\n"
-                       f"Invalid: {sum(1 for r in results if not r.is_valid)}"
+            await update.callback_query.edit_message_text(
+                download_text,
+                reply_markup=self.keyboards.back_to_job_details(job_id),
+                parse_mode='Markdown'
             )
             
         except Exception as e:
-            logger.error(f"Error downloading results: {e}")
+            logger.error(f"Error generating download link: {e}")
             await update.callback_query.edit_message_text(
-                "❌ Error generating download file.",
+                "❌ Error generating download link. Please try again.",
                 reply_markup=self.keyboards.main_menu()
             )
     
-    async def show_recent_jobs(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session):
-        """Show user's recent validation jobs"""
+    async def show_job_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session, page: int = 0):
+        """Show user's validation job history with pagination"""
         try:
-            # Get recent jobs (last 10)
+            # Get jobs for this user, paginated
+            jobs_per_page = 5
+            offset = page * jobs_per_page
+            
             jobs = db.query(ValidationJob).filter(
                 ValidationJob.user_id == user.id
-            ).order_by(ValidationJob.created_at.desc()).limit(10).all()
+            ).order_by(ValidationJob.created_at.desc()).offset(offset).limit(jobs_per_page).all()
+            
+            # Get total count for pagination
+            total_jobs = db.query(ValidationJob).filter(ValidationJob.user_id == user.id).count()
+            total_pages = (total_jobs + jobs_per_page - 1) // jobs_per_page
             
             if not jobs:
                 await update.callback_query.edit_message_text(
-                    "📋 **Recent Jobs**\n\nNo validation jobs found.\n\nUpload an email list to get started!",
+                    "📋 **Job History**\n\nNo validation jobs found.\n\nStart your first validation to see history here!",
                     reply_markup=self.keyboards.main_menu(),
                     parse_mode='Markdown'
                 )
                 return
             
-            # Format jobs list
-            jobs_text = "📋 **Recent Validation Jobs**\n\n"
+            # Build history message
+            history_text = f"📋 **Job History** (Page {page + 1} of {max(1, total_pages)})\n\n"
             
             for job in jobs:
-                status_emoji = "✅" if job.status == "completed" else "⏳" if job.status == "processing" else "❌"
+                # Get job statistics
+                results = db.query(ValidationResult).filter(ValidationResult.job_id == job.id).all()
+                valid_count = sum(1 for r in results if r.is_valid)
+                total_count = len(results)
                 
-                # Get result count
-                result_count = db.query(ValidationResult).filter(ValidationResult.job_id == job.id).count()
-                valid_count = db.query(ValidationResult).filter(
-                    ValidationResult.job_id == job.id,
-                    ValidationResult.is_valid == True
-                ).count()
+                # Status emoji
+                status_emoji = {
+                    'completed': '✅',
+                    'processing': '🔄', 
+                    'failed': '❌',
+                    'pending': '⏳'
+                }.get(job.status, '❓')
                 
-                jobs_text += f"""
-{status_emoji} **Job #{job.id}**
-📁 {job.filename or 'Manual input'}
-📅 {job.created_at.strftime('%Y-%m-%d %H:%M')}
-📊 {valid_count}/{result_count} valid emails
-⚡ {job.status.title()}
-
-"""
+                # Validation type
+                val_type = (job.validation_type or 'email').title()
+                
+                # Format date
+                date_str = job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'Unknown'
+                
+                # Add job info
+                history_text += f"{status_emoji} **Job #{job.id}** - {val_type}\n"
+                history_text += f"📁 {job.filename or 'Manual Input'}\n"
+                history_text += f"📊 {valid_count}/{total_count} valid ({(valid_count/total_count*100):.0f}%)\n" if total_count > 0 else f"📊 {total_count} items\n"
+                history_text += f"📅 {date_str}\n\n"
+            
+            # Create inline keyboard with job buttons
+            keyboard = []
+            for job in jobs:
+                status_emoji = {
+                    'completed': '✅',
+                    'processing': '🔄', 
+                    'failed': '❌',
+                    'pending': '⏳'
+                }.get(job.status, '❓')
+                
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"{status_emoji} Job #{job.id} - View Details",
+                        callback_data=f"details_{job.id}"
+                    )
+                ])
+            
+            # Add navigation
+            nav_row = []
+            if page > 0:
+                nav_row.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"history_page_{page-1}"))
+            if page < total_pages - 1:
+                nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"history_page_{page+1}"))
+            
+            if nav_row:
+                keyboard.append(nav_row)
+            
+            keyboard.append([InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")])
             
             await update.callback_query.edit_message_text(
-                jobs_text,
-                reply_markup=self.keyboards.recent_jobs_menu(jobs),
+                history_text.strip(),
+                reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode='Markdown'
             )
             
         except Exception as e:
-            logger.error(f"Error showing recent jobs: {e}")
+            logger.error(f"Error showing job history: {e}")
             await update.callback_query.edit_message_text(
-                "❌ Error loading recent jobs.",
+                "❌ Error loading job history. Please try again.",
                 reply_markup=self.keyboards.main_menu()
             )
-    
-    async def start_email_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Start manual email input process"""
-        query = update.callback_query
-        
-        input_text = """📧 **Enter Email Addresses**
-
-Please type or paste your email addresses. You can:
-
-• Enter one email per line
-• Separate emails with commas, spaces, or semicolons
-• Paste from spreadsheets or other sources
-
-**Examples:**
-```
-user@example.com
-test@domain.org, admin@site.com
-support@company.net; info@business.co
-```
-
-Type your emails now:"""
-        
-        await query.edit_message_text(
-            input_text,
-            parse_mode='Markdown'
-        )
-        
-        # Set user state to expect email input
-        context.user_data['awaiting_email_input'] = True
-        context.user_data['validation_type'] = 'email'
-    
-    async def start_phone_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Start manual phone input process"""
-        query = update.callback_query
-        
-        input_text = """📱 **Enter Phone Numbers**
-
-Please type or paste your phone numbers. You can:
-
-• Enter one number per line
-• Use international format (+1234567890)
-• Separate numbers with commas, spaces, or semicolons
-
-**Examples:**
-```
-+1234567890
-+44123456789, +49123456789
-```
-
-Type your phone numbers now:"""
-        
-        await query.edit_message_text(
-            input_text,
-            parse_mode='Markdown'
-        )
-        
-        # Set user state
-        context.user_data['awaiting_phone_input'] = True
-        context.user_data['validation_type'] = 'phone'
-    
-    async def start_validation_from_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Process email validation from manual input"""
-        message_text = update.message.text
-        
-        # Extract emails from input
-        emails = self.file_processor.extract_items_from_text(message_text, 'email')
-        
-        if not emails:
-            await update.message.reply_text(
-                "❌ No valid email addresses found in your input. Please check the format and try again.",
-                reply_markup=self.keyboards.main_menu()
-            )
-            return
-        
-        # Clear the input state
-        context.user_data.pop('awaiting_email_input', None)
-        
-        # Validate emails
-        await self.validate_emails_directly(update, context, emails)
-    
-    async def start_phone_validation_from_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Process phone validation from manual input"""
-        message_text = update.message.text
-        
-        # Extract phone numbers from input
-        phones = self.file_processor.extract_items_from_text(message_text, 'phone')
-        
-        if not phones:
-            await update.message.reply_text(
-                "❌ No valid phone numbers found in your input. Please check the format and try again.",
-                reply_markup=self.keyboards.main_menu()
-            )
-            return
-        
-        # Clear the input state
-        context.user_data.pop('awaiting_phone_input', None)
-        
-        # Validate phone numbers
-        await self.validate_phones_directly(update, context, phones)
-    
-    async def show_file_upload_options(self, update: Update, context: ContextTypes.DEFAULT_TYPE, validation_type: str):
-        """Show file upload options and instructions"""
-        query = update.callback_query
-        
-        if validation_type == 'email':
-            title = "📧 Upload Email File"
-            instructions = """Upload a file with email addresses to validate:
-
-**Supported Formats:**
-• CSV files with 'email' column
-• Excel files (.xlsx, .xls) with 'email' column
-• Text files (one email per line)
-
-Ready to upload? Send your file now."""
-        else:
-            title = "📱 Upload Phone File"
-            instructions = """Upload a file with phone numbers to validate:
-
-**Supported Formats:**
-• CSV files with 'phone' column
-• Excel files (.xlsx, .xls) with 'phone' column  
-• Text files (one number per line)
-
-Ready to upload? Send your file now."""
-        
-        await query.edit_message_text(
-            f"{title}\n\n{instructions}",
-            reply_markup=self.keyboards.validation_menu(validation_type)
-        )
-    
-    async def prompt_file_upload(self, update: Update, context: ContextTypes.DEFAULT_TYPE, file_type: str):
-        """Prompt user to upload a file"""
-        query = update.callback_query
-        
-        upload_text = f"""📁 **Upload {file_type.upper()} File**
-
-Please send a file with your {file_type} addresses. The bot will automatically detect and process it.
-
-**Supported formats:**
-• CSV files
-• Excel files (.xlsx, .xls)
-• Text files
-
-**File requirements:**
-• Maximum size: 10MB
-• UTF-8 encoding recommended
-
-Send your file now!"""
-        
-        await query.edit_message_text(
-            upload_text,
-            reply_markup=self.keyboards.back_to_validation()
-        )
