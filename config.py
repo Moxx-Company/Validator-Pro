@@ -27,9 +27,17 @@ MAX_CONCURRENT_VALIDATIONS = int(os.getenv('MAX_CONCURRENT_VALIDATIONS', '50'))
 VALIDATION_TIMEOUT = int(os.getenv('VALIDATION_TIMEOUT', '10'))  # seconds
 MAX_FILE_SIZE_MB = int(os.getenv('MAX_FILE_SIZE_MB', '10'))
 
-# Email SMTP Configuration
+# Email SMTP Configuration (optional - for advanced email validation)
+SMTP_SERVER = os.getenv('SMTP_SERVER')  # e.g., 'smtp.gmail.com'
+SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
+SMTP_USERNAME = os.getenv('SMTP_USERNAME')  # Your email address
+SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')  # Your app password
+SMTP_USE_TLS = os.getenv('SMTP_USE_TLS', 'true').lower() == 'true'
 SMTP_TEST_EMAIL = os.getenv('SMTP_TEST_EMAIL', 'test@validator.com')
 SMTP_HELO_DOMAIN = os.getenv('SMTP_HELO_DOMAIN', 'validator.com')
+
+# Check if SMTP credentials are configured
+SMTP_CONFIGURED = bool(SMTP_SERVER and SMTP_USERNAME and SMTP_PASSWORD)
 
 # Phone Validation Configuration
 DEFAULT_PHONE_REGION = os.getenv('DEFAULT_PHONE_REGION', 'US')

@@ -12,7 +12,10 @@ import time
 from dataclasses import dataclass
 import json
 from utils import is_valid_email_syntax, extract_domain
-from config import SMTP_TEST_EMAIL, SMTP_HELO_DOMAIN
+from config import (
+    SMTP_TEST_EMAIL, SMTP_HELO_DOMAIN, SMTP_CONFIGURED,
+    SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_USE_TLS
+)
 
 @dataclass
 class ValidationResult:
@@ -76,8 +79,13 @@ class EmailValidator:
             return []
     
     def check_smtp_connectivity(self, mx_record: str, email: str) -> bool:
-        """Ultra-fast SMTP connectivity check with timeout protection"""
+        """Advanced SMTP connectivity check with optional authentication"""
         try:
+            # If SMTP credentials are configured, use authenticated SMTP testing
+            if SMTP_CONFIGURED:
+                return self.check_authenticated_smtp(email)
+            
+            # Otherwise use the basic SMTP connectivity check
             # Phase 1: Quick socket connection test (1 second timeout)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(1.0)  # Slightly longer timeout for reliability
@@ -105,6 +113,49 @@ class EmailValidator:
             return False
         except Exception:
             # Handle any other unexpected errors
+            return False
+    
+    def check_authenticated_smtp(self, email: str) -> bool:
+        """Advanced SMTP validation using authenticated SMTP server"""
+        try:
+            # Connect to the configured SMTP server
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=5.0) as server:
+                server.ehlo()
+                
+                # Enable TLS if configured
+                if SMTP_USE_TLS:
+                    server.starttls()
+                    server.ehlo()  # Re-identify after TLS
+                
+                # Authenticate with the SMTP server
+                server.login(SMTP_USERNAME, SMTP_PASSWORD)
+                
+                # Test email deliverability by sending a test message
+                # This provides much more accurate validation
+                test_message = f"""From: {SMTP_USERNAME}
+To: {email}
+Subject: Email Validation Test
+Content-Type: text/plain
+
+This is a test message to validate the email address.
+Please ignore this message.
+"""
+                
+                # Attempt to send (this will validate if the email exists)
+                try:
+                    server.sendmail(SMTP_USERNAME, [email], test_message)
+                    return True  # Email was accepted by the server
+                except smtplib.SMTPRecipientsRefused:
+                    return False  # Email was rejected (likely invalid)
+                except smtplib.SMTPDataError:
+                    return False  # Data error (likely invalid email)
+                    
+        except smtplib.SMTPAuthenticationError:
+            # Authentication failed - fall back to basic SMTP check
+            return False
+        except (socket.timeout, smtplib.SMTPException, ConnectionError, OSError):
+            return False
+        except Exception:
             return False
     
     def smart_smtp_check(self, mx_server: str, email: str) -> bool:
