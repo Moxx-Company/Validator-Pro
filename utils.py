@@ -91,9 +91,25 @@ def format_crypto_address(address: str, length: int = 16) -> str:
     return f"{address[:8]}...{address[-8:]}"
 
 def validate_crypto_transaction(tx_hash: str, expected_amount: float, currency: str) -> bool:
-    """Validate crypto transaction (placeholder implementation)"""
-    # This would integrate with blockchain APIs like BlockCypher, Etherscan, etc.
-    # For now, return True as placeholder
-    return True
+    """Validate crypto transaction via BlockBee API"""
+    from services.blockbee_service import BlockBeeService
+    
+    try:
+        blockbee = BlockBeeService()
+        # Use BlockBee's verification system instead of direct blockchain queries
+        verification_result = blockbee.verify_payment(tx_hash)
+        
+        if verification_result.get('success'):
+            amount_received = verification_result.get('amount_received', 0)
+            is_confirmed = verification_result.get('confirmed', False)
+            
+            # Check if amount matches and payment is confirmed
+            return is_confirmed and amount_received >= expected_amount
+        
+        return False
+        
+    except Exception as e:
+        logger.error(f"Error validating crypto transaction: {e}")
+        return False
 
 

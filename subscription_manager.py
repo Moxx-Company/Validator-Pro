@@ -52,15 +52,11 @@ class SubscriptionManager:
         return subscription
     
     def _generate_payment_address(self, currency: str) -> str:
-        """Generate payment address for crypto currency"""
-        # This would typically integrate with a crypto payment processor
-        # For demo purposes, return a mock address
-        addresses = {
-            'bitcoin': f"bc1q{uuid.uuid4().hex[:32]}",
-            'ethereum': f"0x{uuid.uuid4().hex[:40]}",
-            'usdt': f"0x{uuid.uuid4().hex[:40]}"
-        }
-        return addresses.get(currency, f"address_{uuid.uuid4().hex[:16]}")
+        """Generate payment address via BlockBee service"""
+        # This is now handled by the BlockBee service in create_subscription
+        # This method is deprecated and will be removed
+        logger.warning("_generate_payment_address called - use BlockBee service instead")
+        return ""
     
     def check_payment_status(self, subscription: Subscription) -> bool:
         """Check if payment has been received for subscription"""

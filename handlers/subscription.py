@@ -547,40 +547,16 @@ Need help with billing? Contact @globalservicehelp
         )
     
     async def confirm_demo_payment(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session):
-        """Handle demo payment confirmation"""
+        """Handle demo payment confirmation - DEVELOPMENT ONLY"""
         try:
-            from datetime import datetime, timedelta
-            
-            # Create demo subscription
-            subscription = Subscription(
-                user_id=user.id,
-                status='active',
-                amount_usd=9.99,
-                currency='USD',
-                payment_currency_crypto='DEMO',
-                activated_at=datetime.utcnow(),
-                expires_at=datetime.utcnow() + timedelta(days=30),
-                created_at=datetime.utcnow()
-            )
-            
-            db.add(subscription)
-            db.commit()
-            
-            confirmation_text = """
-✅ **Demo Payment Confirmed!**
-
-Your subscription has been activated for testing purposes.
-
-**Status:** Active
-**Duration:** 30 days
-**Features:** Unlimited email & phone validation
-
-Thank you for testing the Email & Phone Validator Pro!
-            """
+            # This function is for development/testing only
+            # In production, all payments go through BlockBee cryptocurrency system
+            logger.warning("Demo payment function called - development only")
             
             await update.callback_query.edit_message_text(
-                confirmation_text,
-                reply_markup=self.keyboards.subscription_menu(True),
+                "Demo payments are not available in production.\n\n"
+                "Please use the cryptocurrency payment system to activate your subscription.",
+                reply_markup=self.keyboards.subscription_menu(False),
                 parse_mode='Markdown'
             )
             
