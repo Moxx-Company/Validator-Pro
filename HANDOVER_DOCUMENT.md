@@ -145,21 +145,32 @@ CREATE TABLE validation_jobs (
 
 ### Configuration Management (`config.py`)
 
-```python
-# Environment Variables Required
-TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
-BLOCKBEE_API_KEY = os.environ.get('BLOCKBEE_API_KEY') 
-DATABASE_URL = os.environ.get('DATABASE_URL')
-BLOCKBEE_WEBHOOK_URL = os.environ.get('BLOCKBEE_WEBHOOK_URL')
+The system uses a comprehensive configuration system with 25+ environment variables:
 
-# System Configuration
-TRIAL_LIMIT = 20000  # Free validations
-SUBSCRIPTION_PRICE_USD = 9.99
-MAX_FILE_SIZE_MB = 10
-BATCH_SIZE_EMAIL = 25
-BATCH_SIZE_PHONE = 100
-CONCURRENT_WORKERS = 20
+```python
+# Required Environment Variables (System will not start without these)
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')  # From @BotFather
+ADMIN_CHAT_ID = os.environ.get('ADMIN_CHAT_ID')           # Your Telegram user ID
+BLOCKBEE_API_KEY = os.environ.get('BLOCKBEE_API_KEY')     # From BlockBee dashboard
+DATABASE_URL = os.environ.get('DATABASE_URL')             # PostgreSQL connection string
+
+# Optional SMTP Configuration (Enhances email validation accuracy)
+SMTP_SERVER = os.environ.get('SMTP_SERVER', '')          # e.g., smtp.gmail.com
+SMTP_USERNAME = os.environ.get('SMTP_USERNAME', '')      # Your email address
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')      # App-specific password
+SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))      # Usually 587 for TLS
+SMTP_USE_TLS = os.environ.get('SMTP_USE_TLS', 'true').lower() == 'true'
+
+# System Configuration (Has sensible defaults)
+SUBSCRIPTION_PRICE_USD = float(os.environ.get('SUBSCRIPTION_PRICE_USD', '9.99'))
+SUBSCRIPTION_DURATION_DAYS = int(os.environ.get('SUBSCRIPTION_DURATION_DAYS', '30'))
+TRIAL_VALIDATION_LIMIT = int(os.environ.get('TRIAL_VALIDATION_LIMIT', '1000'))
+MAX_CONCURRENT_VALIDATIONS = int(os.environ.get('MAX_CONCURRENT_VALIDATIONS', '50'))
+VALIDATION_TIMEOUT = int(os.environ.get('VALIDATION_TIMEOUT', '10'))
+MAX_FILE_SIZE_MB = int(os.environ.get('MAX_FILE_SIZE_MB', '10'))
 ```
+
+All configuration is now environment variable-based with proper validation and no hardcoded values.
 
 ### BlockBee API Integration
 
@@ -223,16 +234,92 @@ params = {
 ## Deployment Configuration
 
 ### Environment Setup
-```bash
-# Required Environment Variables
-export TELEGRAM_BOT_TOKEN="your_bot_token"
-export BLOCKBEE_API_KEY="your_blockbee_api_key"
-export DATABASE_URL="postgresql://user:pass@host:5432/dbname"
-export BLOCKBEE_WEBHOOK_URL="https://your-domain.com/webhook/blockbee"
 
-# Install Dependencies
+#### Required Environment Variables
+```bash
+# Core System Configuration (REQUIRED)
+TELEGRAM_BOT_TOKEN=1234567890:ABCDEF1234567890abcdef1234567890ABC
+ADMIN_CHAT_ID=123456789
+DATABASE_URL=postgresql://username:password@host:port/database_name
+BLOCKBEE_API_KEY=bb_live_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+BLOCKBEE_WEBHOOK_URL=https://yourdomain.replit.app/webhook/blockbee
+```
+
+#### Optional SMTP Configuration (Recommended for 98%+ Email Accuracy)
+```bash
+# Gmail Configuration Example
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-16-character-app-password
+SMTP_USE_TLS=true
+SMTP_TEST_EMAIL=test@validator.com
+SMTP_HELO_DOMAIN=validator.com
+
+# Outlook/Hotmail Alternative
+# SMTP_SERVER=smtp-mail.outlook.com
+# SMTP_USERNAME=your-email@outlook.com
+# SMTP_PASSWORD=your-app-password
+
+# Yahoo Alternative  
+# SMTP_SERVER=smtp.mail.yahoo.com
+# SMTP_USERNAME=your-email@yahoo.com
+# SMTP_PASSWORD=your-app-password
+```
+
+#### System Configuration (Optional - Has Defaults)
+```bash
+# Subscription & Pricing
+SUBSCRIPTION_PRICE_USD=9.99
+SUBSCRIPTION_DURATION_DAYS=30
+TRIAL_VALIDATION_LIMIT=1000
+
+# Performance Settings
+MAX_CONCURRENT_VALIDATIONS=50
+VALIDATION_TIMEOUT=10
+MAX_FILE_SIZE_MB=10
+RATE_LIMIT_PER_MINUTE=120
+DEFAULT_PHONE_REGION=US
+PHONE_VALIDATION_TIMEOUT=5
+
+# API Endpoints
+BLOCKBEE_BASE_URL=https://api.blockbee.io
+COINGECKO_API_BASE=https://api.coingecko.com/api/v3
+TELEGRAM_API_BASE=https://api.telegram.org
+```
+
+#### How to Obtain Required Keys
+
+**1. Telegram Bot Token:**
+- Message @BotFather on Telegram
+- Use `/newbot` command and follow instructions
+- Copy the bot token (format: `1234567890:ABCDEF...`)
+- Get your user ID from @userinfobot for ADMIN_CHAT_ID
+
+**2. BlockBee API Key:**
+- Register at https://blockbee.io
+- Verify email and access dashboard
+- Generate API key (format: `bb_live_...`)
+- Enable desired cryptocurrencies in dashboard
+
+**3. SMTP Credentials (Optional but Recommended):**
+- **Gmail**: Enable 2FA, generate app-specific password in Google Account settings
+- **Outlook**: Use app password from Microsoft account security settings
+- **Yahoo**: Generate app password in Yahoo account settings
+
+#### Install Dependencies
+```bash
 uv add python-telegram-bot sqlalchemy pandas openpyxl dnspython phonenumbers flask requests qrcode pillow
 ```
+
+#### Security Best Practices
+- Store all sensitive data in Replit Secrets (not .env files)
+- Never commit API keys to version control
+- Use app-specific passwords for email providers
+- Regularly rotate API keys and passwords
+- Set strong, unique database passwords
+
+**📋 Complete Setup Guide: See `PRODUCTION_ENVIRONMENT.md` for comprehensive configuration instructions, troubleshooting, and deployment checklist.**
 
 ### Replit Deployment
 ```yaml
