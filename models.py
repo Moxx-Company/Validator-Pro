@@ -138,17 +138,26 @@ class Subscription(Base):
         return True
     
     def activate(self):
-        """Activate the subscription"""
+        """Activate the subscription with mathematically precise duration"""
+        from config import SUBSCRIPTION_DURATION_DAYS
+        
         self.status = 'active'
         self.activated_at = datetime.utcnow()
-        self.expires_at = datetime.utcnow() + timedelta(days=30)
+        # Use configuration value for precise duration calculation
+        self.expires_at = datetime.utcnow() + timedelta(days=SUBSCRIPTION_DURATION_DAYS)
     
     def days_remaining(self):
-        """Get days remaining in subscription"""
+        """Get days remaining in subscription with precise calculation"""
         if not self.expires_at or not self.is_active():
             return 0
+        
         remaining = self.expires_at - datetime.utcnow()
-        return max(0, remaining.days)
+        
+        # Include partial days in calculation for accuracy
+        # If there are hours remaining on the final day, count it as a full day
+        days_with_hours = remaining.total_seconds() / 86400  # 86400 seconds per day
+        
+        return max(0, int(days_with_hours) + (1 if days_with_hours % 1 > 0 else 0))
 
 class ValidationJob(Base):
     __tablename__ = 'validation_jobs'
