@@ -10,7 +10,7 @@ from database import SessionLocal
 from models import User, Subscription
 from keyboards import Keyboards
 from subscription_manager import SubscriptionManager
-from config import SUBSCRIPTION_INFO
+from config import SUBSCRIPTION_INFO, SUBSCRIPTION_PRICE_USD
 from utils import format_crypto_address
 
 logger = logging.getLogger(__name__)
@@ -197,7 +197,7 @@ Select your preferred payment method:
             payment_result = blockbee.create_payment_address(
                 currency=payment_method,
                 user_id=str(user.id),
-                amount_usd=9.99
+                amount_usd=SUBSCRIPTION_PRICE_USD
             )
             
             if not payment_result['success']:
@@ -222,7 +222,7 @@ Select your preferred payment method:
             subscription = Subscription(
                 user_id=user.id,
                 status='pending',
-                amount_usd=9.99,
+                amount_usd=SUBSCRIPTION_PRICE_USD,
                 currency='USD',
                 payment_address=payment_result['address'],
                 payment_amount_crypto=payment_result['amount_crypto'],
@@ -240,7 +240,7 @@ Select your preferred payment method:
 💰 **Payment Instructions - {crypto_name}**
 
 **Amount:** {payment_result['amount_crypto']:.8f} {payment_method.upper()}
-**USD Value:** $9.99
+**USD Value:** ${SUBSCRIPTION_PRICE_USD}
 
 **Payment Address:**
 `{payment_result['address']}`

@@ -195,7 +195,7 @@ You can now validate unlimited emails and phone numbers!"""
             # Still return ok to prevent retries
             return "ok", 200
     
-    @app.route('/webhook/blockbee', methods=['GET'])
+    @app.route('/webhook/test', methods=['GET'])
     def webhook_info():
         """Return webhook information"""
         from config import BLOCKBEE_WEBHOOK_URL
