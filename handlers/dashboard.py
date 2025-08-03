@@ -21,12 +21,15 @@ class DashboardHandler:
     async def show_dashboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show user dashboard"""
         telegram_user = update.effective_user
-        
+        if not telegram_user:
+            return
+            
         with SessionLocal() as db:
             user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
             
             if not user:
-                await update.message.reply_text("Please start the bot first with /start")
+                if update.message:
+                    await update.message.reply_text("Please start the bot first with /start")
                 return
             
             # Get user statistics
@@ -67,20 +70,31 @@ What would you like to explore?
                 )
             else:
                 query = update.callback_query
-                await query.edit_message_text(
-                    dashboard_text,
-                    reply_markup=self.keyboards.dashboard_menu(),
-                    parse_mode='Markdown'
-                )
+                if query:
+                    await query.edit_message_text(
+                        dashboard_text,
+                        reply_markup=self.keyboards.dashboard_menu(),
+                        parse_mode='Markdown'
+                    )
     
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle dashboard-related callbacks"""
         query = update.callback_query
+        if not query:
+            return
+            
         data = query.data
         telegram_user = update.effective_user
         
         with SessionLocal() as db:
             user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
+            
+            if not user:
+                await query.edit_message_text(
+                    "❌ User not found. Please start with /start",
+                    reply_markup=self.keyboards.main_menu()
+                )
+                return
             
             if data == 'dashboard':
                 await self.show_dashboard(update, context)
@@ -101,7 +115,7 @@ What would you like to explore?
         ).all()
         
         # Separate email and phone jobs
-        email_jobs = [job for job in completed_jobs if job.validation_type == 'email' or job.validation_type is None]
+        email_jobs = [job for job in completed_jobs if (job.validation_type == 'email' or job.validation_type is None)]
         phone_jobs = [job for job in completed_jobs if job.validation_type == 'phone']
         
         # Email statistics - get from actual validation results
@@ -144,11 +158,14 @@ What would you like to explore?
         # Subscription info
         if user.has_active_subscription():
             active_sub = user.get_active_subscription()
-            days_remaining = active_sub.days_remaining()
-            subscription_info = f"✅ Active ({days_remaining} days remaining)"
+            if active_sub:
+                days_remaining = active_sub.days_remaining()
+                subscription_info = f"✅ Active ({days_remaining} days remaining)"
+            else:
+                subscription_info = "❌ Subscription error"
         else:
-            emails_used = user.trial_emails_used or 0
-            phones_used = user.trial_phones_used or 0
+            emails_used = (user.trial_emails_used or 0) if user.trial_emails_used is not None else 0
+            phones_used = (user.trial_phones_used or 0) if user.trial_phones_used is not None else 0
             total_used = emails_used + phones_used
             from config import TRIAL_VALIDATION_LIMIT
             trial_remaining = TRIAL_VALIDATION_LIMIT - total_used
@@ -163,7 +180,7 @@ What would you like to explore?
         ).all()
         
         # Monthly statistics - separate email and phone
-        month_email_jobs = [job for job in month_jobs if job.validation_type == 'email' or job.validation_type is None]
+        month_email_jobs = [job for job in month_jobs if (job.validation_type == 'email' or job.validation_type is None)]
         month_phone_jobs = [job for job in month_jobs if job.validation_type == 'phone']
         
         month_email_job_ids = [job.id for job in month_email_jobs]
@@ -256,8 +273,8 @@ What would you like to explore?
             if not jobs:
                 return {'jobs': 0, 'emails': 0, 'valid': 0, 'rate': 0}
             
-            total_emails = sum(job.total_emails for job in jobs)
-            valid_emails = sum(job.valid_emails for job in jobs)
+            total_emails = sum((job.total_emails or 0) for job in jobs)
+            valid_emails = sum((job.valid_emails or 0) for job in jobs)
             rate = round((valid_emails / total_emails * 100), 1) if total_emails > 0 else 0
             
             return {
@@ -303,14 +320,16 @@ What would you like to explore?
         
         if user.has_active_subscription():
             active_sub = user.get_active_subscription()
-            stats_text += f"\n• Subscription expires: {active_sub.expires_at.strftime('%B %d, %Y')}"
+            if active_sub and hasattr(active_sub, 'expires_at') and active_sub.expires_at:
+                stats_text += f"\n• Subscription expires: {active_sub.expires_at.strftime('%B %d, %Y')}"
         
         query = update.callback_query
-        await query.edit_message_text(
-            stats_text,
-            reply_markup=self.keyboards.dashboard_menu(),
-            parse_mode='Markdown'
-        )
+        if query:
+            await query.edit_message_text(
+                stats_text,
+                reply_markup=self.keyboards.dashboard_menu(),
+                parse_mode='Markdown'
+            )
     
     async def show_recent_activity(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session):
         """Show recent user activity"""
@@ -332,12 +351,14 @@ Start validating emails to see your activity history here.
             
             for job in recent_jobs:
                 # Status emoji
-                status_emoji = {
-                    'pending': '⏳',
-                    'processing': '🔄',
-                    'completed': '✅',
-                    'failed': '❌'
-                }.get(job.status, '❓')
+                status_emoji = '❓'
+                if hasattr(job, 'status') and job.status:
+                    status_emoji = {
+                        'pending': '⏳',
+                        'processing': '🔄',
+                        'completed': '✅',
+                        'failed': '❌'
+                    }.get(job.status, '❓')
                 
                 # Time ago
                 time_diff = datetime.utcnow() - job.created_at
@@ -354,23 +375,38 @@ Start validating emails to see your activity history here.
                 
                 # Success rate for completed jobs
                 success_info = ""
-                if job.status == 'completed' and job.total_emails > 0:
+                if (hasattr(job, 'status') and job.status == 'completed' and 
+                    hasattr(job, 'total_emails') and hasattr(job, 'valid_emails') and 
+                    job.total_emails and job.total_emails > 0):
                     success_rate = round((job.valid_emails / job.total_emails) * 100, 1)
                     success_info = f" ({success_rate}% valid)"
                 
+                # Get item count and type
+                item_count = 0
+                item_type = "items"
+                if hasattr(job, 'total_emails') and job.total_emails:
+                    item_count = job.total_emails
+                    item_type = "emails"
+                elif hasattr(job, 'total_items') and job.total_items:
+                    item_count = job.total_items
+                    if hasattr(job, 'validation_type') and job.validation_type == 'phone':
+                        item_type = "phones"
+                    else:
+                        item_type = "emails"
+                
                 activity_text += f"""
-{status_emoji} **{job.filename}**  
-{job.total_emails} emails{success_info}  
+{status_emoji} **{job.filename or 'Unknown File'}**  
+{item_count} {item_type}{success_info}  
 {time_ago}
 
 """
             
             # Add summary
-            completed_jobs = [j for j in recent_jobs if j.status == 'completed']
-            total_recent_emails = sum(job.total_emails for job in completed_jobs)
+            completed_jobs = [j for j in recent_jobs if hasattr(j, 'status') and j.status == 'completed']
+            total_recent_emails = sum((job.total_emails or 0) for job in completed_jobs)
             
             if total_recent_emails > 0:
-                total_recent_valid = sum(job.valid_emails for job in completed_jobs)
+                total_recent_valid = sum((job.valid_emails or 0) for job in completed_jobs)
                 avg_success_rate = round((total_recent_valid / total_recent_emails) * 100, 1)
                 
                 activity_text += f"""
@@ -381,8 +417,9 @@ Start validating emails to see your activity history here.
                 """
         
         query = update.callback_query
-        await query.edit_message_text(
-            activity_text,
-            reply_markup=self.keyboards.dashboard_menu(),
-            parse_mode='Markdown'
-        )
+        if query:
+            await query.edit_message_text(
+                activity_text,
+                reply_markup=self.keyboards.dashboard_menu(),
+                parse_mode='Markdown'
+            )
