@@ -140,7 +140,8 @@ def main():
         
         # Start the Telegram bot
         logger.info("Starting Telegram bot...")
-        application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+        # TELEGRAM_BOT_TOKEN is validated in config.py to ensure it's not None
+        application = Application.builder().token(str(TELEGRAM_BOT_TOKEN)).build()
         
         # Set global bot reference for webhook notifications
         global bot_application

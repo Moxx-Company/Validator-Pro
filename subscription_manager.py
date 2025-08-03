@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from models import User, Subscription
 from config import SUBSCRIPTION_PRICE_USD, SUBSCRIPTION_DURATION_DAYS, SUPPORTED_CRYPTOS
 from services.blockbee_service import BlockBeeService
-import uuid
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ class SubscriptionManager:
         if payment_data['success']:
             subscription.payment_address = payment_data['address']
             subscription.payment_amount_crypto = payment_data['amount_crypto']
-            subscription.payment_reference = payment_data.get('reference')
+            # Reference stored in BlockBee system, not needed in database
         else:
             logger.error(f"Failed to create payment address: {payment_data.get('error')}")
             subscription.status = 'failed'
@@ -51,12 +51,7 @@ class SubscriptionManager:
         self.db_session.commit()
         return subscription
     
-    def _generate_payment_address(self, currency: str) -> str:
-        """Generate payment address via BlockBee service"""
-        # This is now handled by the BlockBee service in create_subscription
-        # This method is deprecated and will be removed
-        logger.warning("_generate_payment_address called - use BlockBee service instead")
-        return ""
+
     
     def check_payment_status(self, subscription: Subscription) -> bool:
         """Check if payment has been received for subscription"""
@@ -82,6 +77,10 @@ class SubscriptionManager:
         self.db_session.commit()
     
 
+    
+    def get_active_subscription(self, user: User) -> Optional[Subscription]:
+        """Get the active subscription for a user"""
+        return user.get_active_subscription()
     
     def check_subscription_expiry(self, user: User) -> Dict[str, Any]:
         """Check subscription expiry status"""

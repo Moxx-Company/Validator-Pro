@@ -226,6 +226,7 @@ class BlockBeeService:
                 uri = address
             
             # Generate QR code
+            import qrcode.constants
             qr = qrcode.QRCode(
                 version=1,
                 error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -247,7 +248,8 @@ class BlockBeeService:
             
         except Exception as e:
             logger.error(f"Error generating QR code: {e}")
-            return None
+            # Return empty BytesIO instead of None for type safety
+            return BytesIO()
     
     def verify_payment(self, reference: str) -> Dict:
         """Verify payment status via BlockBee"""

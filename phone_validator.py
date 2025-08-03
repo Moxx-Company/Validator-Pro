@@ -25,7 +25,7 @@ class PhoneValidationResult:
     country_name: str = ""
     carrier_name: str = ""
     number_type: str = ""
-    timezones: List[str] = None
+    timezones: Optional[List[str]] = None
     error_message: str = ""
     
     def __post_init__(self):
@@ -56,7 +56,7 @@ class PhoneValidator:
         }
         return types.get(number_type, "Unknown")
     
-    def validate_single(self, phone_number: str, default_region: str = None) -> PhoneValidationResult:
+    def validate_single(self, phone_number: str, default_region: Optional[str] = None) -> PhoneValidationResult:
         """Validate a single phone number with timeout protection"""
         import signal
         
@@ -160,7 +160,7 @@ class PhoneValidator:
             # Always clear the alarm
             signal.alarm(0)
     
-    async def validate_batch_async(self, phone_numbers: List[str], default_region: str = None) -> List[PhoneValidationResult]:
+    async def validate_batch_async(self, phone_numbers: List[str], default_region: Optional[str] = None) -> List[PhoneValidationResult]:
         """Validate a batch of phone numbers asynchronously with timeout protection"""
         loop = asyncio.get_running_loop()
         
@@ -209,12 +209,13 @@ class PhoneValidator:
                 ) for number in phone_numbers
             ]
     
-    def extract_phone_numbers(self, text: str, default_region: str = None) -> List[str]:
+    def extract_phone_numbers(self, text: str, default_region: Optional[str] = None) -> List[str]:
         """Extract phone numbers from text"""
         phone_numbers = []
         
         # Try to find numbers with phonenumbers library
-        for match in phonenumbers.PhoneNumberMatcher(text, default_region or "US"):
+        region = default_region or "US"
+        for match in phonenumbers.PhoneNumberMatcher(text, region):
             phone_numbers.append(phonenumbers.format_number(match.number, phonenumbers.PhoneNumberFormat.E164))
         
         # Also try some common patterns if no matches found
