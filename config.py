@@ -28,12 +28,14 @@ VALIDATION_TIMEOUT = int(os.getenv('VALIDATION_TIMEOUT', '10'))  # seconds
 MAX_FILE_SIZE_MB = int(os.getenv('MAX_FILE_SIZE_MB', '10'))
 
 # Email SMTP Configuration (optional - for advanced email validation)
-SMTP_SERVER = os.getenv('SMTP_SERVER')  # e.g., 'smtp.gmail.com'
+# Recommended: Use Brevo SMTP for professional email validation
+# SMTP_SERVER=smtp-relay.brevo.com, SMTP_USERNAME=your-smtp-login@example.com, SMTP_PASSWORD=your-brevo-smtp-key
+SMTP_SERVER = os.getenv('SMTP_SERVER')  # e.g., 'smtp-relay.brevo.com' or 'smtp.gmail.com'
 SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
-SMTP_USERNAME = os.getenv('SMTP_USERNAME')  # Your email address
-SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')  # Your app password
+SMTP_USERNAME = os.getenv('SMTP_USERNAME')  # Your SMTP username (email for Gmail, login for Brevo)
+SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')  # Your SMTP key/password
 SMTP_USE_TLS = os.getenv('SMTP_USE_TLS', 'true').lower() == 'true'
-SMTP_TEST_EMAIL = os.getenv('SMTP_TEST_EMAIL', 'test@validator.com')
+SMTP_TEST_EMAIL = os.getenv('SMTP_TEST_EMAIL', 'noreply@validator.com')
 SMTP_HELO_DOMAIN = os.getenv('SMTP_HELO_DOMAIN', 'validator.com')
 
 # Check if SMTP credentials are configured

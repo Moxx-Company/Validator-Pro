@@ -116,13 +116,14 @@ class EmailValidator:
             return False
     
     def check_authenticated_smtp(self, email: str) -> bool:
-        """Advanced SMTP validation using authenticated SMTP server"""
+        """Advanced SMTP validation using authenticated SMTP server (optimized for Brevo)"""
         try:
-            # Connect to the configured SMTP server
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=5.0) as server:
+            # Connect to the configured SMTP server with appropriate timeout
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=8.0) as server:
+                # Initial EHLO
                 server.ehlo()
                 
-                # Enable TLS if configured
+                # Enable TLS if configured (required for Brevo)
                 if SMTP_USE_TLS:
                     server.starttls()
                     server.ehlo()  # Re-identify after TLS
@@ -130,32 +131,45 @@ class EmailValidator:
                 # Authenticate with the SMTP server
                 server.login(SMTP_USERNAME, SMTP_PASSWORD)
                 
-                # Test email deliverability by sending a test message
-                # This provides much more accurate validation
-                test_message = f"""From: {SMTP_USERNAME}
-To: {email}
-Subject: Email Validation Test
-Content-Type: text/plain
-
-This is a test message to validate the email address.
-Please ignore this message.
-"""
-                
-                # Attempt to send (this will validate if the email exists)
+                # For validation, we only test MAIL FROM and RCPT TO
+                # without actually sending the message (more efficient)
                 try:
-                    server.sendmail(SMTP_USERNAME, [email], test_message)
-                    return True  # Email was accepted by the server
-                except smtplib.SMTPRecipientsRefused:
-                    return False  # Email was rejected (likely invalid)
-                except smtplib.SMTPDataError:
-                    return False  # Data error (likely invalid email)
+                    # Set the sender
+                    server.mail(SMTP_TEST_EMAIL)
+                    
+                    # Test the recipient - this is where validation happens
+                    code, response = server.rcpt(email)
+                    
+                    # Reset the connection for next use
+                    server.rset()
+                    
+                    # Brevo/standard SMTP response codes for valid emails:
+                    # 250 = Requested mail action okay, completed
+                    # 251 = User not local; will forward
+                    # 252 = Cannot verify user, but will accept message
+                    return code in [250, 251, 252]
+                    
+                except smtplib.SMTPRecipientsRefused as e:
+                    # Email was explicitly rejected
+                    return False
+                except smtplib.SMTPServerDisconnected:
+                    # Connection lost - treat as failed validation
+                    return False
                     
         except smtplib.SMTPAuthenticationError:
-            # Authentication failed - fall back to basic SMTP check
+            # Authentication failed - credentials issue
+            print(f"SMTP Authentication failed for {SMTP_SERVER} - check credentials")
+            return False
+        except smtplib.SMTPConnectError:
+            # Cannot connect to SMTP server
+            print(f"Cannot connect to SMTP server {SMTP_SERVER}:{SMTP_PORT}")
             return False
         except (socket.timeout, smtplib.SMTPException, ConnectionError, OSError):
+            # Network or server issues
             return False
-        except Exception:
+        except Exception as e:
+            # Unexpected error
+            print(f"Unexpected SMTP error: {e}")
             return False
     
     def smart_smtp_check(self, mx_server: str, email: str) -> bool:

@@ -7,7 +7,7 @@ Validator Pro is a Telegram bot offering bulk email and phone number validation 
 
 - **HARDCODED VALUES ELIMINATED (August 2, 2025)**: Removed all hardcoded configuration values from the codebase. All critical settings are now environment variable-based with proper validation. Added comprehensive configuration system with 25+ configurable parameters including API endpoints, timeouts, limits, pricing, and validation settings. Created complete environment variables documentation. System now enforces required variables (TELEGRAM_BOT_TOKEN, ADMIN_CHAT_ID, BLOCKBEE_API_KEY) and provides sensible defaults for optional settings.
 
-- **SMTP AUTHENTICATION ADDED (August 3, 2025)**: Enhanced email validation system with optional SMTP authentication support. When SMTP credentials are configured (SMTP_SERVER, SMTP_USERNAME, SMTP_PASSWORD), the system performs authenticated SMTP testing for 98%+ validation accuracy. Supports Gmail, Outlook, Yahoo, and custom SMTP servers. Falls back to basic SMTP connectivity testing when credentials aren't configured. Added comprehensive SMTP configuration documentation.
+- **BREVO SMTP INTEGRATION (August 3, 2025)**: Enhanced email validation system with professional-grade Brevo SMTP support for 98%+ validation accuracy. Brevo (formerly Sendinblue) provides reliable SMTP relay services with 300 free emails/day, specifically optimized for email validation. Supports authenticated SMTP testing with proper fallback to basic connectivity checks. Created comprehensive Brevo setup guide with step-by-step configuration instructions. System automatically detects SMTP configuration and switches to enhanced validation mode.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

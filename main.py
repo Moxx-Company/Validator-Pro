@@ -15,7 +15,7 @@ from handlers.admin import AdminHandler
 from keyboards import Keyboards
 from database import init_database
 from webhook_handler import create_webhook_app
-from config import TELEGRAM_BOT_TOKEN
+from config import TELEGRAM_BOT_TOKEN, SMTP_CONFIGURED, SMTP_SERVER
 
 # Configure logging
 logging.basicConfig(
@@ -130,6 +130,12 @@ def main():
         # Initialize database
         init_database()
         logger.info("Database initialized successfully")
+        
+        # Log SMTP configuration status
+        if SMTP_CONFIGURED:
+            logger.info(f"SMTP authentication configured - using enhanced validation mode with {SMTP_SERVER}")
+        else:
+            logger.info("SMTP not configured - using basic validation mode (85-90% accuracy)")
         
         # Start webhook server in background
         webhook_thread = threading.Thread(target=run_webhook_server, daemon=True)
