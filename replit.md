@@ -11,6 +11,8 @@ Validator Pro is a Telegram bot offering bulk email and phone number validation 
 
 - **ALL MOCK IMPLEMENTATIONS ELIMINATED (August 3, 2025)**: Completed production readiness by removing all placeholder, mock, and fake data implementations. System now uses real database storage for validation results, authentic progress tracking, operational file serving on port 5001, and complete BlockBee cryptocurrency payment integration. All validation handlers integrated with real progress tracker and database storage. Demo payment functions disabled for production use.
 
+- **SUBSCRIPTION EXPIRY NOTIFICATIONS ADDED (August 3, 2025)**: Implemented automated subscription expiry notification system with scheduler-based monitoring. Users receive warning notifications 3 days before expiry and final notices on expiry day. System automatically deactivates expired subscriptions and includes comprehensive notification tracking. Scheduler runs every 4 hours and daily at 10 AM UTC for reliable coverage.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 

@@ -119,6 +119,10 @@ class Subscription(Base):
     activated_at = Column(DateTime, nullable=True)
     expires_at = Column(DateTime, nullable=True)
     
+    # Notification tracking
+    expiry_warning_sent = Column(Boolean, default=False)  # 3-day warning sent
+    expiry_final_notice_sent = Column(Boolean, default=False)  # Final notice sent
+    
     # Relationships
     user = relationship("User", back_populates="subscriptions")
     

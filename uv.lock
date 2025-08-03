@@ -1058,6 +1058,7 @@ name = "repl-nix-workspace"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "apscheduler" },
     { name = "asyncio" },
     { name = "dnspython" },
     { name = "flask" },
@@ -1085,6 +1086,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "apscheduler", specifier = ">=3.10.4" },
     { name = "asyncio", specifier = ">=3.4.3" },
     { name = "dnspython", specifier = ">=2.7.0" },
     { name = "flask", specifier = ">=3.1.1" },

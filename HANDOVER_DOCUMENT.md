@@ -297,11 +297,19 @@ wait_for_port: 5001
 - ✅ **Progress Tracking**: Real-time updates with accurate statistics
 - ✅ **Error Handling**: Comprehensive error management
 - ✅ **Job History**: Complete validation job management
+- ✅ **Expiry Notifications**: Automated subscription expiry warnings and deactivation
 
 ### Service Architecture
-- **Bot Server**: Port 5002 - Main Telegram bot application
+- **Bot Server**: Port 5002 - Main Telegram bot application with expiry notification scheduler
 - **Payment API**: Port 5000 - BlockBee cryptocurrency payment processing
 - **File Server**: Port 5001 - Validation result downloads
+
+### Subscription Expiry System
+- **Warning Notifications**: Sent 3 days before expiry
+- **Final Notices**: Sent on expiry day (within 24 hours)  
+- **Automatic Deactivation**: Expired subscriptions automatically set to 'expired' status
+- **Scheduler**: Runs every 4 hours + daily at 10 AM UTC
+- **Notification Tracking**: Prevents duplicate notifications with database flags
 
 ## Troubleshooting Guide
 

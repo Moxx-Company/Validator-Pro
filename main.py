@@ -7,6 +7,7 @@ import logging
 import threading
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from telegram import Update, BotCommand
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from handlers.start import StartHandler
 from handlers.subscription import SubscriptionHandler  
 from handlers.validation import ValidationHandler
@@ -16,6 +17,7 @@ from keyboards import Keyboards
 from database import init_database
 from webhook_handler import create_webhook_app
 from config import TELEGRAM_BOT_TOKEN
+from subscription_expiry_notifier import run_expiry_check
 
 # Configure logging
 logging.basicConfig(
@@ -146,9 +148,34 @@ def main():
         
         setup_handlers(application)
         
-        # Set up bot commands menu after application starts
+        # Setup scheduler for subscription expiry notifications
         async def post_init(app):
             await setup_bot_commands(app)
+            
+            # Start expiry notification scheduler
+            scheduler = AsyncIOScheduler()
+            
+            # Schedule expiry checks every 4 hours
+            scheduler.add_job(
+                run_expiry_check,
+                'interval',
+                hours=4,
+                id='subscription_expiry_check',
+                replace_existing=True
+            )
+            
+            # Also run daily at 10 AM UTC
+            scheduler.add_job(
+                run_expiry_check,
+                'cron',
+                hour=10,
+                minute=0,
+                id='daily_expiry_check',
+                replace_existing=True
+            )
+            
+            scheduler.start()
+            logger.info("Subscription expiry notification scheduler started")
         
         application.post_init = post_init
         
