@@ -63,10 +63,10 @@ class StartHandler:
 {WELCOME_MESSAGE}
 
 🎁 **Free Trial:**
-• Get 1,000 FREE validations (emails + phones combined)
-• No credit card required
-• Test both email and phone validation features
-• See the quality of our professional validation
+- Get 1,000 FREE validations (emails + phones combined)
+- No credit card required
+- Test both email and phone validation features
+- See the quality of our professional validation
 
 Ready to start validating?
         """
@@ -152,6 +152,96 @@ Welcome back, {user.full_name}!
             elif data == 'contact_support':
                 await self.show_contact_support(update, context)
     
+    async def show_faq(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show frequently asked questions"""
+        faq_text = """
+❓ **Frequently Asked Questions**
+
+**Q: How accurate is the validation?**
+A: Our email validation achieves 95%+ accuracy through multi-layer verification including DNS, MX records, and SMTP testing. Phone validation uses Google's libphonenumber for international accuracy.
+
+**Q: What file formats are supported?**
+A: CSV, Excel (.xlsx/.xls), and TXT files up to 10MB. For CSV/Excel, use 'email' or 'phone' column headers.
+
+**Q: How does the free trial work?**
+A: You get 1,000 free validations (emails + phones combined). No credit card required. Trial usage is tracked and displayed in your dashboard.
+
+**Q: Are my files secure?**
+A: Yes. Files are processed securely and deleted after validation. We don't store your email/phone lists permanently.
+
+**Q: How fast is the validation?**
+A: Email validation: 15-30 emails/second. Phone validation: 50+ numbers/second. Large files are processed in batches with progress updates.
+
+**Q: What payment methods are accepted?**
+A: We accept cryptocurrencies including Bitcoin, Ethereum, USDT, Litecoin, Dogecoin, TRON, and BNB Chain for maximum privacy and security.
+
+**Q: Can I validate international phone numbers?**
+A: Yes! Our system supports all international formats and provides country, carrier, and timezone information.
+
+**Q: What if I need to validate more than 10MB?**
+A: Contact our support team @globalservicehelp for assistance with large datasets.
+
+**Q: Do subscriptions auto-renew?**
+A: No. All subscriptions are one-time payments that expire after 30 days. No recurring charges.
+
+**Q: Can I get a refund?**
+A: Please contact @globalservicehelp for refund requests and billing issues.
+
+Still have questions? Contact @globalservicehelp
+        """
+        
+        query = update.callback_query
+        await query.edit_message_text(
+            faq_text,
+            reply_markup=self.keyboards.help_menu(),
+            parse_mode='Markdown'
+        )
+    
+    async def show_contact_support(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show contact support information"""
+        support_text = """
+💬 **Contact Support**
+
+**Direct Support:**
+- Telegram: @globalservicehelp
+- Response time: Within 24 hours
+
+**What we can help with:**
+- Technical issues and validation problems
+- Account and subscription questions
+- File format and upload assistance
+- Large dataset processing requests
+- Billing and refund inquiries
+- Feature requests and feedback
+
+**Before contacting support:**
+- Check the User Guide for detailed instructions
+- Review the FAQ for common questions
+- Include specific error messages if any
+- Mention your username and issue details
+
+**Business Inquiries:**
+For bulk validation services, enterprise solutions, or API access, please contact our support team.
+
+**Bug Reports:**
+Found a bug? Please report it with:
+- Steps to reproduce the issue
+- Screenshots if applicable
+- Your device/browser information
+
+We appreciate your feedback and are here to help!
+
+**Support Hours:** 9 AM - 6 PM UTC, Monday - Friday
+**Emergency issues:** Contact anytime via @globalservicehelp
+        """
+        
+        query = update.callback_query
+        await query.edit_message_text(
+            support_text,
+            reply_markup=self.keyboards.help_menu(),
+            parse_mode='Markdown'
+        )
+    
     async def complete_onboarding(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session):
         """Complete the onboarding process"""
         user.is_onboarded = True
@@ -165,9 +255,9 @@ Welcome back, {user.full_name}!
 You're all set up and ready to start validating!
 
 **Your Free Trial:**
-• {TRIAL_VALIDATION_LIMIT:,} validations included (emails + phones)
-• Full access to all features
-• Test both email and phone validation
+- {TRIAL_VALIDATION_LIMIT:,} validations included (emails + phones)
+- Full access to all features
+- Test both email and phone validation
 
 **Next Steps:**
 1. Choose Email or Phone validation
@@ -198,9 +288,9 @@ Welcome to Validator Pro! Here's how to get the most out of our service:
 4. Download your detailed results
 
 **Need assistance?**
-• Check our User Guide for detailed instructions
-• Browse FAQ for common questions  
-• Contact support for personalized help
+- Check our User Guide for detailed instructions
+- Browse FAQ for common questions  
+- Contact support for personalized help
 
 **Direct Support:** @globalservicehelp
 
@@ -220,38 +310,44 @@ How can we help you today?
 📖 **User Guide**
 
 **Email Validation:**
-• Checks syntax, DNS, MX records, SMTP connectivity
-• Accepts individual emails or bulk files
-• Returns deliverability status and detailed reports
+- Checks syntax, DNS, MX records, SMTP connectivity
+- Accepts individual emails or bulk files
+- Returns deliverability status and detailed reports
+- Supports CSV, Excel, and TXT formats
+- Max file size: 10MB
 
 **Phone Validation:**
-• Validates format and carrier information
-• Detects country and number type
-• Works with international phone numbers
+- International format validation
+- Country and carrier detection
+- Number type classification (mobile, landline, etc.)
+- Geographic information and timezones
+- Supports same file formats as email
 
-**File Formats Supported:**
-• CSV files (comma-separated)
-• Excel files (.xlsx, .xls)
-• Text files (one per line)
+**File Formats:**
+- CSV: Must have 'email' or 'phone' column
+- Excel: .xlsx and .xls supported
+- Text: One item per line
 
-**Results Include:**
-• Validation status (valid/invalid)
-• Detailed error reasons
-• Carrier info (for phones)
-• Downloadable CSV reports
+**How to Use:**
+1. Start your free trial (1,000 validations)
+2. Choose Email or Phone validation
+3. Upload file or enter data manually
+4. Download detailed validation results
+5. Subscribe for unlimited access
 
 **Tips for Best Results:**
-• Clean your data first
-• Use international format for phones (+1234567890)
-• Ensure email format is correct
+- Use international format for phones (+1234567890)
+- Ensure proper encoding for special characters
+- Check column headers in CSV/Excel files
+- Contact support for large datasets (>10MB)
 
-Need more help? Contact our support team at @globalservicehelp!
+Need help? Contact @globalservicehelp
         """
         
         query = update.callback_query
         await query.edit_message_text(
             guide_text,
-            reply_markup=self.keyboards.back_to_menu(),
+            reply_markup=self.keyboards.help_menu(),
             parse_mode='Markdown'
         )
     
@@ -300,25 +396,25 @@ Still have questions? Contact our support team at @globalservicehelp!
 Our support team is here to help you succeed with Validator Pro.
 
 **Get Help With:**
-• Technical issues or errors
-• Billing and subscription questions
-• Feature requests and suggestions
-• Data validation best practices
-• Bulk processing assistance
+- Technical issues or errors
+- Billing and subscription questions
+- Feature requests and suggestions
+- Data validation best practices
+- Bulk processing assistance
 
 **Response Times:**
-• General inquiries: Within 24 hours
-• Technical issues: Within 12 hours
-• Billing questions: Within 6 hours
+- General inquiries: Within 24 hours
+- Technical issues: Within 12 hours
+- Billing questions: Within 6 hours
 
 **How to Reach Us:**
 Contact us directly at @globalservicehelp or send us a message in this chat describing your issue, and our team will respond promptly.
 
 **Include in Your Message:**
-• Description of the problem
-• Steps you've tried
-• Screenshots if helpful
-• Your subscription status
+- Description of the problem
+- Steps you've tried
+- Screenshots if helpful
+- Your subscription status
 
 We're committed to providing excellent support for all Validator Pro users!
         """

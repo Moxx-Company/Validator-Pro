@@ -273,6 +273,279 @@ Select your preferred payment method:
                 reply_markup=self.keyboards.subscription_menu(False, True)
             )
     
+    async def start_trial(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session):
+        """Start free trial for user"""
+        from config import TRIAL_VALIDATION_LIMIT
+        
+        # Check if trial already started
+        emails_used = user.trial_emails_used or 0
+        phones_used = user.trial_phones_used or 0
+        trial_already_used = (emails_used + phones_used) > 0 or user.trial_activated
+        
+        if trial_already_used:
+            trial_text = """
+🆓 **Trial Already Started**
+
+Your free trial is already active! 
+
+**Current Usage:**
+• Emails validated: {emails_used}
+• Phones validated: {phones_used}
+• Remaining: {remaining} validations
+
+Start validating your data now!
+            """.format(
+                emails_used=emails_used,
+                phones_used=phones_used,
+                remaining=TRIAL_VALIDATION_LIMIT - (emails_used + phones_used)
+            )
+        else:
+            # Activate trial
+            user.trial_activated = True
+            db.commit()
+            
+            trial_text = f"""
+🎉 **Free Trial Activated!**
+
+Congratulations! You now have access to:
+
+**Trial Benefits:**
+• {TRIAL_VALIDATION_LIMIT:,} free validations (emails + phones combined)
+• Full access to all validation features
+• Detailed reporting and analytics
+• No credit card required
+
+**What's Included:**
+• Email syntax, DNS, MX, and SMTP validation
+• International phone number validation
+• File upload support (CSV, Excel, TXT)
+• Real-time validation progress
+• Downloadable results
+
+**Getting Started:**
+1. Click 'Email' or 'Phone' validation
+2. Upload a file or enter data manually
+3. Watch the validation in real-time
+4. Download your detailed results
+
+Ready to experience professional-grade validation!
+            """
+        
+        query = update.callback_query
+        await query.edit_message_text(
+            trial_text,
+            reply_markup=self.keyboards.main_menu(),
+            parse_mode='Markdown'
+        )
+    
+    async def show_subscription_info(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show subscription information and pricing"""
+        from config import SUBSCRIPTION_PRICE_USD, SUBSCRIPTION_DURATION_DAYS, TRIAL_VALIDATION_LIMIT
+        
+        info_text = f"""
+💎 **Subscription Information**
+
+**Monthly Plan:** ${SUBSCRIPTION_PRICE_USD}/month
+
+**What's Included:**
+• ✅ Unlimited email validations
+• ✅ Unlimited phone validations  
+• ✅ Priority processing speed
+• ✅ Advanced validation reports
+• ✅ No daily/monthly limits
+• ✅ Email & phone combo validation
+• ✅ Export results in multiple formats
+• ✅ Priority customer support
+
+**Free Trial vs Subscription:**
+
+🆓 **Free Trial:**
+• {TRIAL_VALIDATION_LIMIT:,} total validations
+• All features included
+• Perfect for testing our service
+
+💎 **Monthly Subscription:**
+• Unlimited validations
+• Same high-quality validation
+• No restrictions
+• {SUBSCRIPTION_DURATION_DAYS} days access
+
+**Payment Methods:**
+We accept cryptocurrency payments for maximum privacy and security:
+• Bitcoin (BTC)
+• Ethereum (ETH) 
+• USDT (TRC20 & ERC20)
+• Litecoin (LTC)
+• Dogecoin (DOGE)
+• TRON (TRX)
+• BNB Smart Chain
+
+**Why Cryptocurrency?**
+• Fast and secure transactions
+• No personal information required
+• Lower transaction fees
+• Instant subscription activation
+
+**No Auto-Renewal:** All subscriptions are one-time purchases that expire after {SUBSCRIPTION_DURATION_DAYS} days. No recurring charges ever.
+
+Ready to upgrade?
+        """
+        
+        query = update.callback_query
+        await query.edit_message_text(
+            info_text,
+            reply_markup=self.keyboards.subscription_menu(False, True),
+            parse_mode='Markdown'
+        )
+    
+    async def show_subscription_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User):
+        """Show detailed subscription status"""
+        with SessionLocal() as db:
+            user = db.query(User).filter(User.telegram_id == str(user.telegram_id)).first()
+            
+            if user.has_active_subscription():
+                active_sub = user.get_active_subscription()
+                days_remaining = active_sub.days_remaining()
+                
+                status_text = f"""
+💎 **Subscription Status**
+
+**Current Plan:** Active Monthly Subscription
+**Status:** ✅ Active and Valid
+**Expires:** {active_sub.expires_at.strftime('%B %d, %Y at %I:%M %p UTC')}
+**Days Remaining:** {days_remaining} days
+**Amount Paid:** ${active_sub.amount_usd}
+**Payment Method:** {active_sub.payment_currency_crypto}
+**Order ID:** `{active_sub.id}`
+
+**Access Level:** 🔓 Unlimited
+• Email validations: Unlimited
+• Phone validations: Unlimited
+• File uploads: Unlimited
+• Export formats: All available
+
+**Recent Activity:**
+• Activated: {active_sub.activated_at.strftime('%B %d, %Y') if active_sub.activated_at else 'N/A'}
+• Payment confirmed: ✅ Verified
+• Auto-renewal: ❌ Disabled (one-time payment)
+
+**What happens when it expires?**
+Your subscription will automatically downgrade to the free trial limits. You can purchase a new subscription anytime to continue unlimited access.
+                """
+            else:
+                from config import TRIAL_VALIDATION_LIMIT
+                emails_used = user.trial_emails_used or 0
+                phones_used = user.trial_phones_used or 0
+                total_used = emails_used + phones_used
+                remaining = TRIAL_VALIDATION_LIMIT - total_used
+                
+                status_text = f"""
+🆓 **Trial Status**
+
+**Current Plan:** Free Trial
+**Status:** {'✅ Active' if user.trial_activated else '⏳ Available'}
+**Total Validations:** {TRIAL_VALIDATION_LIMIT:,} included
+
+**Usage Summary:**
+• Email validations: {emails_used:,} used
+• Phone validations: {phones_used:,} used
+• **Remaining:** {remaining:,} validations
+
+**Access Level:** 🔒 Limited
+• Combined email + phone limit: {TRIAL_VALIDATION_LIMIT:,}
+• All features available during trial
+• Export formats: All available
+
+**Upgrade Benefits:**
+• Remove all validation limits
+• Priority processing speed
+• Priority customer support
+• No restrictions on file sizes
+
+Ready to upgrade to unlimited access?
+                """
+        
+        query = update.callback_query
+        await query.edit_message_text(
+            status_text,
+            reply_markup=self.keyboards.subscription_menu(user.has_active_subscription(), True),
+            parse_mode='Markdown'
+        )
+    
+    async def show_payment_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User):
+        """Show payment history for user"""
+        with SessionLocal() as db:
+            # Get all subscriptions for user
+            subscriptions = db.query(Subscription).filter(
+                Subscription.user_id == user.id
+            ).order_by(Subscription.created_at.desc()).all()
+            
+            if not subscriptions:
+                history_text = """
+💳 **Payment History**
+
+No payment history found.
+
+You haven't made any subscription payments yet. Your free trial allows you to test all features before subscribing.
+
+Ready to make your first purchase?
+                """
+            else:
+                history_text = "💳 **Payment History**\n\n"
+                
+                for sub in subscriptions:
+                    # Status emoji
+                    status_emoji = {
+                        'pending': '⏳',
+                        'active': '✅', 
+                        'expired': '❌',
+                        'cancelled': '🚫'
+                    }.get(sub.status, '❓')
+                    
+                    # Date formatting
+                    created_date = sub.created_at.strftime('%B %d, %Y')
+                    
+                    # Duration info
+                    if sub.status == 'active' and sub.expires_at:
+                        duration_info = f"Expires: {sub.expires_at.strftime('%B %d, %Y')}"
+                    elif sub.status == 'expired' and sub.expires_at:
+                        duration_info = f"Expired: {sub.expires_at.strftime('%B %d, %Y')}"
+                    elif sub.status == 'pending':
+                        duration_info = "Awaiting payment confirmation"
+                    else:
+                        duration_info = "Status updated"
+                    
+                    history_text += f"""
+{status_emoji} **Order #{sub.id}**
+• Amount: ${sub.amount_usd} ({sub.payment_currency_crypto})
+• Date: {created_date}
+• Status: {sub.status.title()}
+• {duration_info}
+
+"""
+                
+                # Add summary
+                active_count = len([s for s in subscriptions if s.status == 'active'])
+                expired_count = len([s for s in subscriptions if s.status == 'expired']) 
+                total_spent = sum(s.amount_usd for s in subscriptions if s.status in ['active', 'expired'])
+                
+                history_text += f"""
+📊 **Summary:**
+• Total orders: {len(subscriptions)}
+• Active subscriptions: {active_count}
+• Expired subscriptions: {expired_count}
+• Total spent: ${total_spent:.2f}
+
+Need help with billing? Contact @globalservicehelp
+                """
+        
+        query = update.callback_query
+        await query.edit_message_text(
+            history_text,
+            reply_markup=self.keyboards.subscription_menu(user.has_active_subscription(), True),
+            parse_mode='Markdown'
+        )
+    
     async def confirm_demo_payment(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session):
         """Handle demo payment confirmation"""
         try:

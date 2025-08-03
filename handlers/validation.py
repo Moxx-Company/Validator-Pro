@@ -1150,3 +1150,156 @@ When you're done, click "Start Validation" below.
                 "❌ Error loading recent jobs.",
                 reply_markup=self.keyboards.main_menu()
             )
+    
+    async def start_email_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start manual email input process"""
+        query = update.callback_query
+        
+        input_text = """📧 **Enter Email Addresses**
+
+Please type or paste your email addresses. You can:
+
+• Enter one email per line
+• Separate emails with commas, spaces, or semicolons
+• Paste from spreadsheets or other sources
+
+**Examples:**
+```
+user@example.com
+test@domain.org, admin@site.com
+support@company.net; info@business.co
+```
+
+Type your emails now:"""
+        
+        await query.edit_message_text(
+            input_text,
+            parse_mode='Markdown'
+        )
+        
+        # Set user state to expect email input
+        context.user_data['awaiting_email_input'] = True
+        context.user_data['validation_type'] = 'email'
+    
+    async def start_phone_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Start manual phone input process"""
+        query = update.callback_query
+        
+        input_text = """📱 **Enter Phone Numbers**
+
+Please type or paste your phone numbers. You can:
+
+• Enter one number per line
+• Use international format (+1234567890)
+• Separate numbers with commas, spaces, or semicolons
+
+**Examples:**
+```
++1234567890
++44123456789, +49123456789
+```
+
+Type your phone numbers now:"""
+        
+        await query.edit_message_text(
+            input_text,
+            parse_mode='Markdown'
+        )
+        
+        # Set user state
+        context.user_data['awaiting_phone_input'] = True
+        context.user_data['validation_type'] = 'phone'
+    
+    async def start_validation_from_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Process email validation from manual input"""
+        message_text = update.message.text
+        
+        # Extract emails from input
+        emails = self.file_processor.extract_items_from_text(message_text, 'email')
+        
+        if not emails:
+            await update.message.reply_text(
+                "❌ No valid email addresses found in your input. Please check the format and try again.",
+                reply_markup=self.keyboards.main_menu()
+            )
+            return
+        
+        # Clear the input state
+        context.user_data.pop('awaiting_email_input', None)
+        
+        # Validate emails
+        await self.validate_emails_directly(update, context, emails)
+    
+    async def start_phone_validation_from_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Process phone validation from manual input"""
+        message_text = update.message.text
+        
+        # Extract phone numbers from input
+        phones = self.file_processor.extract_items_from_text(message_text, 'phone')
+        
+        if not phones:
+            await update.message.reply_text(
+                "❌ No valid phone numbers found in your input. Please check the format and try again.",
+                reply_markup=self.keyboards.main_menu()
+            )
+            return
+        
+        # Clear the input state
+        context.user_data.pop('awaiting_phone_input', None)
+        
+        # Validate phone numbers
+        await self.validate_phones_directly(update, context, phones)
+    
+    async def show_file_upload_options(self, update: Update, context: ContextTypes.DEFAULT_TYPE, validation_type: str):
+        """Show file upload options and instructions"""
+        query = update.callback_query
+        
+        if validation_type == 'email':
+            title = "📧 Upload Email File"
+            instructions = """Upload a file with email addresses to validate:
+
+**Supported Formats:**
+• CSV files with 'email' column
+• Excel files (.xlsx, .xls) with 'email' column
+• Text files (one email per line)
+
+Ready to upload? Send your file now."""
+        else:
+            title = "📱 Upload Phone File"
+            instructions = """Upload a file with phone numbers to validate:
+
+**Supported Formats:**
+• CSV files with 'phone' column
+• Excel files (.xlsx, .xls) with 'phone' column  
+• Text files (one number per line)
+
+Ready to upload? Send your file now."""
+        
+        await query.edit_message_text(
+            f"{title}\n\n{instructions}",
+            reply_markup=self.keyboards.validation_menu(validation_type)
+        )
+    
+    async def prompt_file_upload(self, update: Update, context: ContextTypes.DEFAULT_TYPE, file_type: str):
+        """Prompt user to upload a file"""
+        query = update.callback_query
+        
+        upload_text = f"""📁 **Upload {file_type.upper()} File**
+
+Please send a file with your {file_type} addresses. The bot will automatically detect and process it.
+
+**Supported formats:**
+• CSV files
+• Excel files (.xlsx, .xls)
+• Text files
+
+**File requirements:**
+• Maximum size: 10MB
+• UTF-8 encoding recommended
+
+Send your file now!"""
+        
+        await query.edit_message_text(
+            upload_text,
+            reply_markup=self.keyboards.back_to_validation()
+        )

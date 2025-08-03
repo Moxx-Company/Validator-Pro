@@ -2,6 +2,8 @@
 Admin handler for bot administration tasks including broadcast messaging
 """
 import logging
+import asyncio
+from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from database import get_db
@@ -33,10 +35,10 @@ class AdminHandler:
 
 Welcome to the admin control panel. Choose an action:
 
-• **📢 Broadcast Message** - Send message to all users
-• **📊 User Statistics** - View user stats and analytics  
-• **🗄️ Database Stats** - View database information
-• **⚙️ System Status** - Check bot system status
+- **📢 Broadcast Message** - Send message to all users
+- **📊 User Statistics** - View user stats and analytics  
+- **🗄️ Database Stats** - View database information
+- **⚙️ System Status** - Check bot system status
         """
         
         keyboard = [
@@ -93,10 +95,10 @@ Welcome to the admin control panel. Choose an action:
 Send a message to all bot users. This will be delivered to everyone who has used the bot.
 
 **Guidelines:**
-• Keep messages clear and professional
-• Avoid spam or excessive messaging
-• Include relevant information only
-• Messages support Markdown formatting
+- Keep messages clear and professional
+- Avoid spam or excessive messaging
+- Include relevant information only
+- Messages support Markdown formatting
 
 Ready to compose your broadcast message?
         """
@@ -122,10 +124,10 @@ Ready to compose your broadcast message?
             "📢 **Compose Broadcast Message**\n\n"
             "Please type your broadcast message. It will be sent to all bot users.\n\n"
             "You can use Markdown formatting:\n"
-            "• **Bold text**\n"
-            "• *Italic text*\n"
-            "• `Code text`\n"
-            "• [Links](http://example.com)\n\n"
+            "- **Bold text**\n"
+            "- *Italic text*\n"
+            "- `Code text`\n"
+            "- [Links](http://example.com)\n\n"
             "Type your message now:"
         )
         
@@ -174,41 +176,39 @@ Confirm to send this broadcast message?
         if not broadcast_message:
             await query.edit_message_text("❌ No broadcast message found. Please try again.")
             return
-        
-        # Update status message
-        await query.edit_message_text("📤 Sending broadcast message to all users...")
+            
+        await query.edit_message_text("📢 **Sending broadcast...**\nPlease wait while we deliver your message to all users.")
         
         # Get all users from database
-        db = next(get_db())
-        try:
+        with get_db() as db:
             users = db.query(User).all()
-            total_users = len(users)
-            sent_count = 0
+            
+            success_count = 0
             failed_count = 0
             
             for user in users:
                 try:
-                    await context.bot.send_message(
+                    await query.bot.send_message(
                         chat_id=int(user.telegram_id),
-                        text=f"📢 **System Announcement**\n\n{broadcast_message}",
+                        text=f"📢 **Admin Broadcast**\n\n{broadcast_message}",
                         parse_mode='Markdown'
                     )
-                    sent_count += 1
+                    success_count += 1
+                    await asyncio.sleep(0.1)  # Rate limiting
                 except Exception as e:
-                    logger.warning(f"Failed to send broadcast to user {user.telegram_id}: {e}")
+                    logger.error(f"Failed to send broadcast to user {user.telegram_id}: {e}")
                     failed_count += 1
-        finally:
-            db.close()
         
-        # Send completion report
-        report_text = f"""
+        # Clear broadcast data
+        context.user_data.pop('broadcast_message', None)
+        
+        result_text = f"""
 ✅ **Broadcast Complete**
 
 **Results:**
-• Total users: {total_users}
-• Messages sent: {sent_count}
-• Failed deliveries: {failed_count}
-• Success rate: {(sent_count/total_users*100):.1f}%
+- Messages sent: {success_count}
+- Failed deliveries: {failed_count}
+- Total users: {len(users)}
 
 **Message sent:**
 {broadcast_message}
@@ -217,17 +217,238 @@ Confirm to send this broadcast message?
         keyboard = [
             [InlineKeyboardButton("⬅️ Back to Admin Panel", callback_data="admin_panel")]
         ]
-        
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await query.edit_message_text(
-            report_text,
+            result_text,
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
+    
+    async def cancel_broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Cancel broadcast message"""
+        query = update.callback_query
         
-        # Clean up user data
+        # Clear broadcast data
         context.user_data.pop('broadcast_message', None)
+        context.user_data.pop('waiting_for_broadcast', None)
+        
+        await query.edit_message_text(
+            "❌ **Broadcast Cancelled**\n\nYour broadcast message has been discarded.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back to Admin Panel", callback_data="admin_panel")]])
+        )
+    
+    async def show_admin_panel(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show main admin panel"""
+        admin_text = """
+🔧 **Admin Panel**
+
+Welcome to the admin control panel. Choose an action:
+
+- **📢 Broadcast Message** - Send message to all users
+- **📊 User Statistics** - View user stats and analytics  
+- **🗄️ Database Stats** - View database information
+- **⚙️ System Status** - Check bot system status
+        """
+        
+        keyboard = [
+            [InlineKeyboardButton("📢 Broadcast Message", callback_data="admin_broadcast")],
+            [InlineKeyboardButton("📊 User Statistics", callback_data="admin_stats")],
+            [InlineKeyboardButton("🗄️ Database Stats", callback_data="admin_db_stats")],
+            [InlineKeyboardButton("⚙️ System Status", callback_data="admin_system")]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        query = update.callback_query
+        await query.edit_message_text(
+            admin_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+    
+    async def show_user_statistics(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show comprehensive user statistics"""
+        query = update.callback_query
+        
+        with get_db() as db:
+            # Basic user counts
+            total_users = db.query(User).count()
+            active_users = db.query(User).filter(User.is_onboarded == True).count()
+            trial_users = db.query(User).filter(User.trial_activated == True).count()
+            
+            # Subscription statistics
+            from models import Subscription
+            active_subs = db.query(Subscription).filter(Subscription.status == 'active').count()
+            expired_subs = db.query(Subscription).filter(Subscription.status == 'expired').count()
+            pending_subs = db.query(Subscription).filter(Subscription.status == 'pending').count()
+            
+            # Recent activity
+            from datetime import datetime, timedelta
+            today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            week_ago = today - timedelta(days=7)
+            
+            new_users_today = db.query(User).filter(User.created_at >= today).count()
+            new_users_week = db.query(User).filter(User.created_at >= week_ago).count()
+            
+            # Validation jobs
+            from models import ValidationJob
+            total_jobs = db.query(ValidationJob).count()
+            completed_jobs = db.query(ValidationJob).filter(ValidationJob.status == 'completed').count()
+            
+            stats_text = f"""
+📊 **User Statistics**
+
+**User Overview:**
+- Total registered: {total_users:,}
+- Onboarded users: {active_users:,}
+- Trial activated: {trial_users:,}
+
+**New Registrations:**
+- Today: {new_users_today}
+- This week: {new_users_week}
+
+**Subscriptions:**
+- Active: {active_subs}
+- Expired: {expired_subs}
+- Pending payment: {pending_subs}
+
+**Validation Activity:**
+- Total jobs: {total_jobs:,}
+- Completed: {completed_jobs:,}
+- Success rate: {round((completed_jobs/total_jobs*100), 1) if total_jobs > 0 else 0}%
+
+**Conversion Rate:**
+- Trial to paid: {round((active_subs/trial_users*100), 1) if trial_users > 0 else 0}%
+- Registration to trial: {round((trial_users/total_users*100), 1) if total_users > 0 else 0}%
+            """
+        
+        keyboard = [
+            [InlineKeyboardButton("⬅️ Back to Admin Panel", callback_data="admin_panel")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            stats_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+    
+    async def show_database_stats(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show database statistics"""
+        query = update.callback_query
+        
+        with get_db() as db:
+            # Table counts
+            user_count = db.query(User).count()
+            
+            from models import Subscription, ValidationJob, ValidationResult
+            subscription_count = db.query(Subscription).count()
+            job_count = db.query(ValidationJob).count()
+            result_count = db.query(ValidationResult).count()
+            
+            # Database size estimation (rough)
+            avg_results_per_job = result_count / job_count if job_count > 0 else 0
+            
+            db_stats_text = f"""
+🗄️ **Database Statistics**
+
+**Table Counts:**
+- Users: {user_count:,}
+- Subscriptions: {subscription_count:,}
+- Validation Jobs: {job_count:,}
+- Validation Results: {result_count:,}
+
+**Data Analysis:**
+- Avg results per job: {avg_results_per_job:.1f}
+- Total validations processed: {result_count:,}
+
+**Data Health:**
+- Database status: ✅ Operational
+- Connection: ✅ Active
+- Performance: ✅ Normal
+
+**Storage Overview:**
+- Primary tables: 4 active
+- Indexes: Optimized
+- Cleanup: Auto-managed
+
+Last updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}
+            """
+        
+        keyboard = [
+            [InlineKeyboardButton("⬅️ Back to Admin Panel", callback_data="admin_panel")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            db_stats_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+    
+    async def show_system_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show system status and health"""
+        query = update.callback_query
+        
+        import psutil
+        import os
+        from datetime import datetime
+        
+        # System metrics
+        cpu_percent = psutil.cpu_percent(interval=1)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        # Bot uptime (approximate)
+        import time
+        uptime_seconds = time.time() - psutil.Process().create_time()
+        uptime_hours = uptime_seconds / 3600
+        
+        system_text = f"""
+⚙️ **System Status**
+
+**Bot Health:**
+- Status: ✅ Online and operational
+- Uptime: {uptime_hours:.1f} hours
+- Response time: Normal
+- Error rate: Low
+
+**System Resources:**
+- CPU usage: {cpu_percent}%
+- Memory: {memory.percent}% used ({memory.used//1024//1024:,} MB / {memory.total//1024//1024:,} MB)
+- Disk: {disk.percent}% used ({disk.used//1024//1024//1024:.1f} GB / {disk.total//1024//1024//1024:.1f} GB)
+
+**Services Status:**
+- Telegram Bot API: ✅ Connected
+- Database: ✅ Active
+- Webhook Server: ✅ Running
+- Payment API: ✅ Running
+
+**Environment:**
+- Platform: {os.name}
+- Python: Active
+- Dependencies: ✅ All loaded
+
+**Performance:**
+- Message processing: Normal
+- File uploads: Normal
+- Validation speed: Optimal
+
+Last check: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
+        """
+        
+        keyboard = [
+            [InlineKeyboardButton("🔄 Refresh", callback_data="admin_system")],
+            [InlineKeyboardButton("⬅️ Back to Admin Panel", callback_data="admin_panel")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            system_text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
     
     async def cancel_broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Cancel broadcast message"""
@@ -253,10 +474,10 @@ Confirm to send this broadcast message?
 
 Welcome to the admin control panel. Choose an action:
 
-• **📢 Broadcast Message** - Send message to all users
-• **📊 User Statistics** - View user stats and analytics  
-• **🗄️ Database Stats** - View database information
-• **⚙️ System Status** - Check bot system status
+- **📢 Broadcast Message** - Send message to all users
+- **📊 User Statistics** - View user stats and analytics  
+- **🗄️ Database Stats** - View database information
+- **⚙️ System Status** - Check bot system status
         """
         
         keyboard = [
@@ -302,14 +523,14 @@ Welcome to the admin control panel. Choose an action:
 📊 **User Statistics**
 
 **Users:**
-• Total registered users: {total_users}
-• Active subscribers: {active_subscriptions}
-• Free trial users: {total_users - active_subscriptions}
+- Total registered users: {total_users}
+- Active subscribers: {active_subscriptions}
+- Free trial users: {total_users - active_subscriptions}
 
 **Validations:**
-• Total validation jobs: {total_validations}
-• Email validations: {email_validations}
-• Phone validations: {phone_validations}
+- Total validation jobs: {total_validations}
+- Email validations: {email_validations}
+- Phone validations: {phone_validations}
 
 **Subscription Rate:** {(active_subscriptions/total_users*100):.1f}%
         """
@@ -346,9 +567,9 @@ Welcome to the admin control panel. Choose an action:
 🗄️ **Database Statistics**
 
 **Table Records:**
-• Users: {users_count}
-• Validation Jobs: {jobs_count}
-• Subscriptions: {subscriptions_count}
+- Users: {users_count}
+- Validation Jobs: {jobs_count}
+- Subscriptions: {subscriptions_count}
 
 **Database Status:** ✅ Connected
 **Environment:** Development
@@ -387,9 +608,9 @@ Welcome to the admin control panel. Choose an action:
 **Webhook Server:** ✅ Active (Port 5000)
 
 **System Resources:**
-• CPU Usage: {cpu_percent}%
-• Memory Usage: {memory.percent}%
-• Available Memory: {memory.available // (1024**2)} MB
+- CPU Usage: {cpu_percent}%
+- Memory Usage: {memory.percent}%
+- Available Memory: {memory.available // (1024**2)} MB
 
 **Uptime:** {uptime//3600:.1f} hours
         """

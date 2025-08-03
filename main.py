@@ -107,10 +107,10 @@ def setup_handlers(application):
         user_data = context.user_data or {}
         if user_data.get('waiting_for_broadcast'):
             await admin_handler.handle_broadcast_input(update, context)
-        elif user_data.get('waiting_for_emails'):
-            await validation_handler.handle_email_input(update, context)
-        elif user_data.get('waiting_for_phones'):
-            await validation_handler.handle_phone_input(update, context)
+        elif user_data.get('awaiting_email_input'):
+            await validation_handler.start_validation_from_input(update, context)
+        elif user_data.get('awaiting_phone_input'):
+            await validation_handler.start_phone_validation_from_input(update, context)
         elif user_data.get('waiting_for_transaction'):
             await subscription_handler.handle_transaction_hash(update, context)
     
