@@ -67,32 +67,6 @@ SMTP_PASSWORD=your-app-password
 SMTP_USE_TLS=true
 ```
 
-### Brevo (Sendinblue) Configuration **[RECOMMENDED]**
-```bash
-SMTP_SERVER=smtp-relay.brevo.com
-SMTP_PORT=587
-SMTP_USERNAME=your-smtp-login@example.com
-SMTP_PASSWORD=your-brevo-smtp-key
-SMTP_USE_TLS=true
-```
-
-**Brevo Setup Steps:**
-1. Log into your Brevo account
-2. Go to account dropdown (top-right) → **SMTP & API**
-3. Click the **SMTP** tab (not API tab)
-4. Click **Generate a new SMTP key**
-5. Name your key (e.g. "Validator Pro Bot")
-6. Copy the SMTP login email and SMTP key immediately
-7. Use these credentials in your environment variables
-
-**Why Brevo is Recommended:**
-- Professional email service with high deliverability
-- Reliable SMTP relay with excellent uptime
-- Free tier includes 300 emails/day
-- Better reputation than personal email providers
-- Designed for transactional/automated emails
-- Port 587 works reliably (rarely blocked)
-
 ### Custom SMTP Server
 ```bash
 SMTP_SERVER=mail.yourdomain.com
@@ -147,17 +121,10 @@ If SMTP authentication fails, the system automatically falls back to basic SMTP 
 
 ## Recommended Setup
 
-For production use, we highly recommend **Brevo SMTP**:
-1. Sign up for a free Brevo account at brevo.com
-2. Navigate to SMTP & API → SMTP tab
-3. Generate a new SMTP key for your validation bot
-4. Configure the credentials as shown above
-5. Monitor your daily sending limits (300 free emails/day)
-
-**Alternative: Gmail Setup**
+For production use, we recommend:
 1. Create a dedicated Gmail account for validation
 2. Enable 2FA and generate an App Password
 3. Set reasonable rate limits
 4. Monitor usage and quotas
 
-Brevo provides the best balance of accuracy, reliability, and professional email reputation for email validation services.
+This provides the best balance of accuracy, reliability, and security.
