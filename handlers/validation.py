@@ -382,7 +382,7 @@ When you're done, click "Start Validation" below.
         query = update.callback_query
         await query.edit_message_text(
             input_text,
-            reply_markup=self.keyboards.main_menu(),  # No start button until numbers are entered
+            reply_markup=self.keyboards.phone_input_menu(),
             parse_mode='Markdown'
         )
     
@@ -401,7 +401,7 @@ When you're done, click "Start Validation" below.
         if not found_phones:
             await update.message.reply_text(
                 "❌ No valid phone numbers found. Please enter valid phone numbers.",
-                reply_markup=self.keyboards.main_menu()  # No start button for invalid input
+                reply_markup=self.keyboards.phone_input_menu()
             )
             return
         
@@ -441,8 +441,9 @@ When you're done, click "Start Validation" below.
             return
         
         # Clear input state
-        context.user_data['waiting_for_phones'] = False
-        context.user_data['collected_phones'] = []
+        if context.user_data:
+            context.user_data['waiting_for_phones'] = False
+            context.user_data['collected_phones'] = []
         
         # Get user
         telegram_user = update.effective_user
@@ -1101,5 +1102,90 @@ Click the link below to download your results:
             logger.error(f"Error showing job history: {e}")
             await update.callback_query.edit_message_text(
                 "❌ Error loading job history. Please try again.",
+                reply_markup=self.keyboards.main_menu()
+            )
+    
+    async def show_recent_jobs(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session):
+        """Show recent validation jobs for the user"""
+        try:
+            # Get 5 most recent jobs
+            jobs = db.query(ValidationJob).filter(
+                ValidationJob.user_id == user.id
+            ).order_by(ValidationJob.created_at.desc()).limit(5).all()
+            
+            if not jobs:
+                await update.callback_query.edit_message_text(
+                    "📋 **Recent Jobs**\n\nNo validation jobs found.\n\nStart your first validation to see jobs here!",
+                    reply_markup=self.keyboards.main_menu(),
+                    parse_mode='Markdown'
+                )
+                return
+            
+            # Build jobs message
+            jobs_text = "📋 **Recent Validation Jobs**\n\n"
+            
+            for job in jobs:
+                # Get job statistics
+                results = db.query(ValidationResult).filter(ValidationResult.job_id == job.id).all()
+                valid_count = sum(1 for r in results if r.is_valid)
+                total_count = len(results)
+                
+                # Status emoji
+                status_emoji = {
+                    'completed': '✅',
+                    'processing': '🔄', 
+                    'failed': '❌',
+                    'pending': '⏳'
+                }.get(job.status, '❓')
+                
+                # Validation type
+                val_type = (job.validation_type or 'email').title()
+                
+                # Format date
+                date_str = job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'Unknown'
+                
+                # Add job info
+                jobs_text += f"{status_emoji} **Job #{job.id}** - {val_type}\n"
+                jobs_text += f"📁 {job.filename or 'Manual Input'}\n"
+                if total_count > 0:
+                    success_rate = (valid_count/total_count*100) if total_count > 0 else 0
+                    jobs_text += f"📊 {valid_count}/{total_count} valid ({success_rate:.0f}%)\n"
+                else:
+                    jobs_text += f"📊 {total_count} items\n"
+                jobs_text += f"📅 {date_str}\n\n"
+            
+            # Create inline keyboard with job buttons
+            keyboard = []
+            for job in jobs:
+                status_emoji = {
+                    'completed': '✅',
+                    'processing': '🔄', 
+                    'failed': '❌',
+                    'pending': '⏳'
+                }.get(job.status, '❓')
+                
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"{status_emoji} Job #{job.id} - Details",
+                        callback_data=f"details_{job.id}"
+                    )
+                ])
+            
+            # Add navigation buttons
+            keyboard.extend([
+                [InlineKeyboardButton("📊 View All History", callback_data="job_history")],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+            ])
+            
+            await update.callback_query.edit_message_text(
+                jobs_text.strip(),
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Error showing recent jobs: {e}")
+            await update.callback_query.edit_message_text(
+                "❌ Error loading recent jobs. Please try again.",
                 reply_markup=self.keyboards.main_menu()
             )
