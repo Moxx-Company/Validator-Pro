@@ -962,7 +962,7 @@ When you're done, click "Start Validation" below.
             )
     
     async def download_results(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, job_id: str, db: Session):
-        """Generate download link for validation results"""
+        """Send validation results as CSV file directly through Telegram"""
         try:
             job = db.query(ValidationJob).filter(ValidationJob.id == int(job_id), ValidationJob.user_id == user.id).first()
             if not job:
@@ -981,34 +981,87 @@ When you're done, click "Start Validation" below.
                 )
                 return
             
-            # Generate download link
-            download_url = f"https://verifyemailphone.replit.app/download/{job_id}?user_id={user.id}"
-            
-            # Create download message
+            # Generate CSV content
             validation_type = job.validation_type or 'email'
-            download_text = f"""📁 Download Ready
-
-File: {job.filename}
-Type: {validation_type.title()} Validation Results
-Format: CSV
-Records: {len(results)}
-
-Click the link below to download your results:
-{download_url}
-
-Link expires in 24 hours"""
+            csv_content = self._create_results_csv(results, validation_type)
             
+            # Create filename
+            timestamp = job.created_at.strftime('%Y%m%d_%H%M%S') if job.created_at else 'unknown'
+            filename = f"{validation_type}_validation_results_{timestamp}.csv"
+            
+            # Send processing message
             await update.callback_query.edit_message_text(
-                download_text,
+                f"📤 Preparing your {validation_type} validation results...\n\nSending CSV file with {len(results)} records.",
                 reply_markup=self.keyboards.back_to_job_details(job_id)
             )
             
+            # Send CSV file as document
+            from io import BytesIO
+            csv_bytes = BytesIO(csv_content.encode('utf-8'))
+            csv_bytes.name = filename
+            
+            await update.callback_query.message.reply_document(
+                document=csv_bytes,
+                filename=filename,
+                caption=f"📊 {validation_type.title()} Validation Results\n\n📁 Job: {job.filename}\n📈 Records: {len(results)}\n📅 {job.created_at.strftime('%Y-%m-%d %H:%M') if job.created_at else 'Unknown date'}"
+            )
+            
         except Exception as e:
-            logger.error(f"Error generating download link: {e}")
+            logger.error(f"Error sending results file: {e}")
             await update.callback_query.edit_message_text(
-                "❌ Error generating download link. Please try again.",
+                "❌ Error preparing results file. Please try again.",
                 reply_markup=self.keyboards.main_menu()
             )
+    
+    def _create_results_csv(self, results: list, validation_type: str = 'email') -> str:
+        """Create CSV content from validation results"""
+        from io import StringIO
+        import csv
+        
+        output = StringIO()
+        
+        if validation_type == 'email':
+            fieldnames = [
+                'email', 'is_valid', 'syntax_valid', 'domain_exists', 
+                'mx_record_exists', 'smtp_connectable', 'error_message', 'mx_records'
+            ]
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for result in results:
+                writer.writerow({
+                    'email': result.email or '',
+                    'is_valid': 'Yes' if result.is_valid else 'No',
+                    'syntax_valid': 'Yes' if result.syntax_valid else 'No',
+                    'domain_exists': 'Yes' if result.domain_exists else 'No',
+                    'mx_record_exists': 'Yes' if result.mx_record_exists else 'No',
+                    'smtp_connectable': 'Yes' if result.smtp_connectable else 'No',
+                    'error_message': result.error_message or '',
+                    'mx_records': result.mx_records or ''
+                })
+        else:  # phone
+            fieldnames = [
+                'phone_number', 'is_valid', 'formatted_international', 'formatted_national',
+                'country_code', 'country_name', 'carrier', 'number_type', 'timezone', 'error_message'
+            ]
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            for result in results:
+                writer.writerow({
+                    'phone_number': result.phone_number or '',
+                    'is_valid': 'Yes' if result.is_valid else 'No',
+                    'formatted_international': result.formatted_international or '',
+                    'formatted_national': result.formatted_national or '',
+                    'country_code': result.country_code or '',
+                    'country_name': result.country_name or '',
+                    'carrier': result.carrier or '',
+                    'number_type': result.number_type or '',
+                    'timezone': result.timezone or '',
+                    'error_message': result.error_message or ''
+                })
+        
+        return output.getvalue()
     
     async def show_job_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session, page: int = 0):
         """Show user's validation job history with pagination"""
