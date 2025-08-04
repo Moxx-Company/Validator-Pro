@@ -981,29 +981,40 @@ When you're done, click "Start Validation" below.
                 )
                 return
             
-            # Generate CSV content
+            # Detect original file format from filename
             validation_type = job.validation_type or 'email'
-            csv_content = self._create_results_csv(results, validation_type)
+            original_filename = job.filename or 'Manual Input'
             
-            # Create filename
-            timestamp = job.created_at.strftime('%Y%m%d_%H%M%S') if job.created_at else 'unknown'
-            filename = f"{validation_type}_validation_results_{timestamp}.csv"
+            # Determine file format and generate appropriate content
+            if original_filename.lower().endswith('.txt') or original_filename == 'Manual Input':
+                # Generate TXT format
+                content, filename, mime_type = self._create_results_txt(results, validation_type, job.created_at)
+            elif original_filename.lower().endswith(('.xlsx', '.xls')):
+                # Generate Excel format
+                content, filename, mime_type = self._create_results_excel(results, validation_type, job.created_at)
+            else:
+                # Default to CSV format
+                content, filename, mime_type = self._create_results_csv_formatted(results, validation_type, job.created_at)
             
             # Send processing message
+            format_name = filename.split('.')[-1].upper()
             await update.callback_query.edit_message_text(
-                f"📤 Preparing your {validation_type} validation results...\n\nSending CSV file with {len(results)} records.",
+                f"📤 Preparing your {validation_type} validation results...\n\nSending {format_name} file with {len(results)} records.",
                 reply_markup=self.keyboards.back_to_job_details(job_id)
             )
             
-            # Send CSV file as document
+            # Send file as document
             from io import BytesIO
-            csv_bytes = BytesIO(csv_content.encode('utf-8'))
-            csv_bytes.name = filename
+            if isinstance(content, bytes):
+                file_bytes = BytesIO(content)
+            else:
+                file_bytes = BytesIO(content.encode('utf-8'))
+            file_bytes.name = filename
             
             await update.callback_query.message.reply_document(
-                document=csv_bytes,
+                document=file_bytes,
                 filename=filename,
-                caption=f"📊 {validation_type.title()} Validation Results\n\n📁 Job: {job.filename}\n📈 Records: {len(results)}\n📅 {job.created_at.strftime('%Y-%m-%d %H:%M') if job.created_at else 'Unknown date'}"
+                caption=f"📊 {validation_type.title()} Validation Results\n\n📁 Original: {original_filename}\n📈 Records: {len(results)}\n📅 {job.created_at.strftime('%Y-%m-%d %H:%M') if job.created_at else 'Unknown date'}"
             )
             
         except Exception as e:
@@ -1012,6 +1023,134 @@ When you're done, click "Start Validation" below.
                 "❌ Error preparing results file. Please try again.",
                 reply_markup=self.keyboards.main_menu()
             )
+    
+    def _create_results_csv_formatted(self, results: list, validation_type: str = 'email', created_at=None) -> tuple:
+        """Create CSV content with proper formatting"""
+        content = self._create_results_csv(results, validation_type)
+        timestamp = created_at.strftime('%Y%m%d_%H%M%S') if created_at else 'unknown'
+        filename = f"{validation_type}_validation_results_{timestamp}.csv"
+        return content, filename, 'text/csv'
+    
+    def _create_results_txt(self, results: list, validation_type: str = 'email', created_at=None) -> tuple:
+        """Create TXT format results"""
+        timestamp = created_at.strftime('%Y%m%d_%H%M%S') if created_at else 'unknown'
+        filename = f"{validation_type}_validation_results_{timestamp}.txt"
+        
+        lines = [f"{validation_type.upper()} VALIDATION RESULTS"]
+        lines.append("=" * 50)
+        lines.append(f"Generated: {created_at.strftime('%Y-%m-%d %H:%M:%S') if created_at else 'Unknown'}")
+        lines.append(f"Total Records: {len(results)}")
+        lines.append("")
+        
+        if validation_type == 'email':
+            valid_count = sum(1 for r in results if r.is_valid)
+            lines.append(f"Valid Emails: {valid_count}")
+            lines.append(f"Invalid Emails: {len(results) - valid_count}")
+            lines.append("")
+            
+            for i, result in enumerate(results, 1):
+                lines.append(f"{i}. {result.email or 'N/A'}")
+                lines.append(f"   Status: {'VALID' if result.is_valid else 'INVALID'}")
+                if result.error_message:
+                    lines.append(f"   Error: {result.error_message}")
+                if result.formatted_international:
+                    lines.append(f"   Format: {result.formatted_international}")
+                lines.append("")
+        else:  # phone
+            valid_count = sum(1 for r in results if r.is_valid)
+            lines.append(f"Valid Numbers: {valid_count}")
+            lines.append(f"Invalid Numbers: {len(results) - valid_count}")
+            lines.append("")
+            
+            for i, result in enumerate(results, 1):
+                lines.append(f"{i}. {result.phone_number or 'N/A'}")
+                lines.append(f"   Status: {'VALID' if result.is_valid else 'INVALID'}")
+                if result.formatted_international:
+                    lines.append(f"   International: {result.formatted_international}")
+                if result.country_name:
+                    lines.append(f"   Country: {result.country_name}")
+                if result.carrier:
+                    lines.append(f"   Carrier: {result.carrier}")
+                if result.error_message:
+                    lines.append(f"   Error: {result.error_message}")
+                lines.append("")
+        
+        content = "\n".join(lines)
+        return content, filename, 'text/plain'
+    
+    def _create_results_excel(self, results: list, validation_type: str = 'email', created_at=None) -> tuple:
+        """Create Excel format results"""
+        timestamp = created_at.strftime('%Y%m%d_%H%M%S') if created_at else 'unknown'
+        filename = f"{validation_type}_validation_results_{timestamp}.xlsx"
+        
+        try:
+            import pandas as pd
+            from io import BytesIO
+            
+            # Prepare data for DataFrame
+            data = []
+            
+            if validation_type == 'email':
+                for result in results:
+                    data.append({
+                        'Email': result.email or '',
+                        'Valid': 'Yes' if result.is_valid else 'No',
+                        'Syntax Valid': 'Yes' if result.syntax_valid else 'No',
+                        'Domain Exists': 'Yes' if result.domain_exists else 'No',
+                        'MX Record': 'Yes' if result.mx_record_exists else 'No',
+                        'SMTP Connected': 'Yes' if result.smtp_connectable else 'No',
+                        'Error Message': result.error_message or '',
+                        'MX Records': result.mx_records or ''
+                    })
+            else:  # phone
+                for result in results:
+                    data.append({
+                        'Phone Number': result.phone_number or '',
+                        'Valid': 'Yes' if result.is_valid else 'No',
+                        'International Format': result.formatted_international or '',
+                        'National Format': result.formatted_national or '',
+                        'Country Code': result.country_code or '',
+                        'Country': result.country_name or '',
+                        'Carrier': result.carrier or '',
+                        'Number Type': result.number_type or '',
+                        'Timezone': result.timezone or '',
+                        'Error Message': result.error_message or ''
+                    })
+            
+            # Create DataFrame and Excel file
+            df = pd.DataFrame(data)
+            excel_buffer = BytesIO()
+            
+            with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                df.to_excel(writer, sheet_name=f'{validation_type.title()} Results', index=False)
+                
+                # Get the workbook and worksheet
+                workbook = writer.book
+                worksheet = writer.sheets[f'{validation_type.title()} Results']
+                
+                # Auto-adjust column widths
+                for column in worksheet.columns:
+                    max_length = 0
+                    column_letter = column[0].column_letter
+                    for cell in column:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(str(cell.value))
+                        except:
+                            pass
+                    adjusted_width = min(max_length + 2, 50)
+                    worksheet.column_dimensions[column_letter].width = adjusted_width
+            
+            excel_buffer.seek(0)
+            return excel_buffer.getvalue(), filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            
+        except ImportError:
+            # Fallback to CSV if pandas/openpyxl not available
+            return self._create_results_csv_formatted(results, validation_type, created_at)
+        except Exception as e:
+            logger.error(f"Error creating Excel file: {e}")
+            # Fallback to CSV on error
+            return self._create_results_csv_formatted(results, validation_type, created_at)
     
     def _create_results_csv(self, results: list, validation_type: str = 'email') -> str:
         """Create CSV content from validation results"""
