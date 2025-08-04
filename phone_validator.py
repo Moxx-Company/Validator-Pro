@@ -105,25 +105,38 @@ class PhoneValidator:
                 error_message="Empty phone number"
             )
         
+        parsing_errors = []  # Initialize at function start to ensure it's always defined
         try:
-            # Parse the number - be strict about format
+            parsed = None
+            
+            # Try parsing with international format first (has + prefix)
             if phone_number.startswith('+'):
-                # International format
-                parsed = phonenumbers.parse(phone_number, None)
-            elif default_region:
-                # Only try with the specified default region
-                parsed = phonenumbers.parse(phone_number, default_region)
-            else:
-                # Try as default region format (most common)
                 try:
-                    parsed = phonenumbers.parse(phone_number, DEFAULT_PHONE_REGION)
-                except NumberParseException:
-                    # If US parsing fails, return invalid - don't try multiple regions
-                    return PhoneValidationResult(
-                        number=phone_number,
-                        is_valid=False,
-                        error_message=f"Invalid phone number format - must include country code or be valid {DEFAULT_PHONE_REGION} format"
-                    )
+                    parsed = phonenumbers.parse(phone_number, None)
+                except NumberParseException as e:
+                    parsing_errors.append(f"International format: {str(e)}")
+            
+            # If we don't have a parsed number yet, try with specified region
+            if not parsed and default_region:
+                try:
+                    parsed = phonenumbers.parse(phone_number, default_region)
+                except NumberParseException as e:
+                    parsing_errors.append(f"Region {default_region}: {str(e)}")
+            
+            # If still no success, try intelligent region detection
+            if not parsed:
+                parsed = self._try_parse_with_common_regions(phone_number, parsing_errors)
+            
+            # If we still couldn't parse the number, return error
+            if not parsed:
+                error_msg = "Could not parse phone number for any region"
+                if parsing_errors:
+                    error_msg += f". Tried: {'; '.join(parsing_errors[:5])}"
+                return PhoneValidationResult(
+                    number=phone_number,
+                    is_valid=False,
+                    error_message=error_msg
+                )
             
             # Check if valid
             is_valid = phonenumbers.is_valid_number(parsed)
@@ -167,10 +180,20 @@ class PhoneValidator:
             )
             
         except NumberParseException as e:
+            # If all parsing attempts failed, provide helpful error message
+            try:
+                if parsing_errors:
+                    error_msg = f"Could not parse phone number. Tried: {'; '.join(parsing_errors[:3])}"
+                else:
+                    error_msg = f"Cannot parse number: {str(e)}"
+            except NameError:
+                # parsing_errors not defined - fallback error message
+                error_msg = f"Cannot parse number: {str(e)}"
+            
             return PhoneValidationResult(
                 number=phone_number,
                 is_valid=False,
-                error_message=f"Cannot parse number: {str(e)}"
+                error_message=error_msg
             )
         except Exception as e:
             logger.error(f"Error validating phone {phone_number}: {e}")
@@ -179,6 +202,116 @@ class PhoneValidator:
                 is_valid=False,
                 error_message=f"Validation error: {str(e)}"
             )
+    
+    def _try_parse_with_common_regions(self, phone_number: str, parsing_errors: list) -> Optional[phonenumbers.PhoneNumber]:
+        """
+        Try parsing phone number against common regions when no country code is provided.
+        Uses intelligent region detection based on number patterns and length.
+        """
+        # Define regions to try in order of global usage and number pattern likelihood
+        common_regions = [
+            'US',    # North America (1)
+            'GB',    # United Kingdom (44)
+            'DE',    # Germany (49)
+            'FR',    # France (33)
+            'IN',    # India (91)
+            'CN',    # China (86)
+            'BR',    # Brazil (55)
+            'IT',    # Italy (39)
+            'ES',    # Spain (34)
+            'RU',    # Russia (7)
+            'JP',    # Japan (81)
+            'KR',    # South Korea (82)
+            'AU',    # Australia (61)
+            'CA',    # Canada (1)
+            'MX',    # Mexico (52)
+            'AR',    # Argentina (54)
+            'TR',    # Turkey (90)
+            'EG',    # Egypt (20)
+            'ZA',    # South Africa (27)
+            'NG',    # Nigeria (234)
+            'PK',    # Pakistan (92)
+            'BD',    # Bangladesh (880)
+            'ID',    # Indonesia (62)
+            'TH',    # Thailand (66)
+            'VN',    # Vietnam (84)
+            'PH',    # Philippines (63)
+            'MY',    # Malaysia (60)
+            'SG',    # Singapore (65)
+            'AE',    # UAE (971)
+            'SA',    # Saudi Arabia (966)
+            'IL',    # Israel (972)
+        ]
+        
+        # Try to detect likely region based on number characteristics
+        likely_regions = self._detect_likely_regions(phone_number)
+        
+        # Combine likely regions with common regions, prioritizing likely ones
+        regions_to_try = likely_regions + [r for r in common_regions if r not in likely_regions]
+        
+        for region in regions_to_try:
+            try:
+                parsed = phonenumbers.parse(phone_number, region)
+                # Only return if the parsed number is actually valid
+                if phonenumbers.is_valid_number(parsed):
+                    return parsed
+            except NumberParseException as e:
+                parsing_errors.append(f"Region {region}: {str(e)}")
+                continue
+        
+        return None
+    
+    def _detect_likely_regions(self, phone_number: str) -> list:
+        """
+        Detect likely regions based on phone number patterns and characteristics.
+        """
+        likely_regions = []
+        
+        # Remove all non-digits for analysis
+        digits_only = ''.join(filter(str.isdigit, phone_number))
+        
+        # Region detection based on number length and starting digits
+        if len(digits_only) == 10:
+            # 10-digit numbers are common in US, Canada, some others
+            likely_regions.extend(['US', 'CA'])
+        elif len(digits_only) == 11:
+            # 11-digit numbers common in many countries
+            if digits_only.startswith('1'):
+                likely_regions.extend(['US', 'CA'])  # NANP countries
+            elif digits_only.startswith('7'):
+                likely_regions.append('RU')  # Russia/Kazakhstan
+            elif digits_only.startswith('44'):
+                likely_regions.append('GB')  # UK
+            elif digits_only.startswith('49'):
+                likely_regions.append('DE')  # Germany
+            elif digits_only.startswith('33'):
+                likely_regions.append('FR')  # France
+            elif digits_only.startswith('39'):
+                likely_regions.append('IT')  # Italy
+            elif digits_only.startswith('34'):
+                likely_regions.append('ES')  # Spain
+        elif len(digits_only) == 12:
+            # 12-digit numbers
+            if digits_only.startswith('91'):
+                likely_regions.append('IN')  # India
+            elif digits_only.startswith('86'):
+                likely_regions.append('CN')  # China
+            elif digits_only.startswith('55'):
+                likely_regions.append('BR')  # Brazil
+        elif len(digits_only) == 13:
+            # 13-digit numbers
+            if digits_only.startswith('234'):
+                likely_regions.append('NG')  # Nigeria
+            elif digits_only.startswith('880'):
+                likely_regions.append('BD')  # Bangladesh
+        
+        # Pattern-based detection for common formats
+        if phone_number.replace(' ', '').replace('-', '').replace('(', '').replace(')', ''):
+            # US/Canada format detection (XXX) XXX-XXXX or XXX-XXX-XXXX
+            if any(pattern in phone_number for pattern in ['(', ')', '-']) and len(digits_only) == 10:
+                likely_regions.extend(['US', 'CA'])
+        
+        return likely_regions
     
     async def validate_batch_async(self, phone_numbers: List[str], default_region: Optional[str] = None) -> List[PhoneValidationResult]:
         """Validate a batch of phone numbers asynchronously with timeout protection"""
