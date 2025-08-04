@@ -4,7 +4,7 @@ File processing service for handling email and phone lists
 import os
 import tempfile
 import pandas as pd
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 from config import MAX_FILE_SIZE_MB, ALLOWED_FILE_EXTENSIONS
 from utils import create_results_csv, format_file_size, is_valid_email_syntax
 import uuid
@@ -37,7 +37,7 @@ class FileProcessor:
         except Exception as e:
             return False, f"Cannot read file: {str(e)}"
     
-    def process_uploaded_file(self, file_path: str, validation_type: str = 'email') -> Tuple[List[str], Dict[str, any]]:
+    def process_uploaded_file(self, file_path: str, validation_type: str = 'email') -> Tuple[List[str], Dict[str, Any]]:
         """Process uploaded file and extract emails or phone numbers"""
         try:
             if validation_type == 'email':
@@ -280,7 +280,7 @@ class FileProcessor:
         
         return file_path
     
-    def get_file_info(self, file_path: str) -> Dict[str, any]:
+    def get_file_info(self, file_path: str) -> Dict[str, Any]:
         """Get information about a file"""
         if not os.path.exists(file_path):
             return {'error': 'File not found'}
