@@ -210,10 +210,18 @@ class Keyboards:
         return InlineKeyboardMarkup(keyboard)
     
     @staticmethod
-    def phone_input_menu():
+    def phone_input_menu(has_numbers=False):
         """Menu for phone input mode"""
+        keyboard = []
+        if has_numbers:
+            keyboard.append([InlineKeyboardButton("✅ Start Validation", callback_data="start_phone_validation")])
+        keyboard.append([InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")])
+        return InlineKeyboardMarkup(keyboard)
+    
+    @staticmethod
+    def phone_input_initial():
+        """Initial phone input menu without validation button"""
         keyboard = [
-            [InlineKeyboardButton("✅ Start Validation", callback_data="start_phone_validation")],
             [InlineKeyboardButton("🔙 Back to Menu", callback_data="main_menu")]
         ]
         return InlineKeyboardMarkup(keyboard)

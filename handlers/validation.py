@@ -382,7 +382,7 @@ When you're done, click "Start Validation" below.
         query = update.callback_query
         await query.edit_message_text(
             input_text,
-            reply_markup=self.keyboards.phone_input_menu(),
+            reply_markup=self.keyboards.phone_input_initial(),
             parse_mode='Markdown'
         )
     
@@ -401,7 +401,7 @@ When you're done, click "Start Validation" below.
         if not found_phones:
             await update.message.reply_text(
                 "❌ No valid phone numbers found. Please enter valid phone numbers.",
-                reply_markup=self.keyboards.phone_input_menu()
+                reply_markup=self.keyboards.phone_input_initial()
             )
             return
         
@@ -418,7 +418,7 @@ When you're done, click "Start Validation" below.
         await update.message.reply_text(
             f"✅ Added {len(found_phones)} phone number(s). Total collected: {len(unique_phones)}\n\n"
             "Send more numbers or click 'Start Validation' below.",
-            reply_markup=self.keyboards.phone_input_menu()
+            reply_markup=self.keyboards.phone_input_menu(has_numbers=True)
         )
     
     async def start_phone_validation_from_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -431,12 +431,12 @@ When you're done, click "Start Validation" below.
             if update.callback_query:
                 await update.callback_query.edit_message_text(
                     "❌ No phone numbers entered. Please enter some numbers first.",
-                    reply_markup=self.keyboards.phone_input_menu()
+                    reply_markup=self.keyboards.phone_input_initial()
                 )
             else:
                 await update.message.reply_text(
                     "❌ No phone numbers entered. Please enter some numbers first.",
-                    reply_markup=self.keyboards.phone_input_menu()
+                    reply_markup=self.keyboards.phone_input_initial()
                 )
             return
         
@@ -986,22 +986,21 @@ When you're done, click "Start Validation" below.
             
             # Create download message
             validation_type = job.validation_type or 'email'
-            download_text = f"""📁 **Download Ready**
-            
-**File:** {job.filename}
-**Type:** {validation_type.title()} Validation Results
-**Format:** CSV
-**Records:** {len(results)}
+            download_text = f"""📁 Download Ready
+
+File: {job.filename}
+Type: {validation_type.title()} Validation Results
+Format: CSV
+Records: {len(results)}
 
 Click the link below to download your results:
 {download_url}
 
-*Link expires in 24 hours*"""
+Link expires in 24 hours"""
             
             await update.callback_query.edit_message_text(
                 download_text,
-                reply_markup=self.keyboards.back_to_job_details(job_id),
-                parse_mode='Markdown'
+                reply_markup=self.keyboards.back_to_job_details(job_id)
             )
             
         except Exception as e:
