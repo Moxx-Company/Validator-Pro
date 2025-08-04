@@ -632,11 +632,12 @@ When you're done, click "Start Validation" below.
             
             # Check file type
             allowed_types = ['text/plain', 'text/csv', 'application/vnd.ms-excel', 
-                           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+                           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                           'application/pdf']
             
             if document.mime_type not in allowed_types:
                 await update.message.reply_text(
-                    "❌ Unsupported file type. Please upload CSV, Excel, or TXT files only.",
+                    "❌ Unsupported file type. Please upload CSV, Excel, TXT, or PDF files only.",
                     reply_markup=self.keyboards.main_menu()
                 )
                 return
@@ -992,6 +993,9 @@ When you're done, click "Start Validation" below.
             elif original_filename.lower().endswith(('.xlsx', '.xls')):
                 # Generate Excel format
                 content, filename, mime_type = self._create_results_excel(results, validation_type, job.created_at)
+            elif original_filename.lower().endswith('.pdf'):
+                # Generate PDF format
+                content, filename, mime_type = self._create_results_pdf(results, validation_type, job.created_at)
             else:
                 # Default to CSV format
                 content, filename, mime_type = self._create_results_csv_formatted(results, validation_type, job.created_at)
@@ -1151,6 +1155,107 @@ When you're done, click "Start Validation" below.
             logger.error(f"Error creating Excel file: {e}")
             # Fallback to CSV on error
             return self._create_results_csv_formatted(results, validation_type, created_at)
+    
+    def _create_results_pdf(self, results: list, validation_type: str = 'email', created_at=None) -> tuple:
+        """Create PDF format results"""
+        timestamp = created_at.strftime('%Y%m%d_%H%M%S') if created_at else 'unknown'
+        filename = f"{validation_type}_validation_results_{timestamp}.pdf"
+        
+        try:
+            from reportlab.lib.pagesizes import letter, A4
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.lib import colors
+            from io import BytesIO
+            
+            # Create PDF buffer
+            pdf_buffer = BytesIO()
+            doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
+            styles = getSampleStyleSheet()
+            story = []
+            
+            # Title
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=18,
+                spaceAfter=30,
+                alignment=1  # Center
+            )
+            story.append(Paragraph(f"{validation_type.upper()} VALIDATION REPORT", title_style))
+            
+            # Summary info
+            summary_style = styles['Normal']
+            story.append(Paragraph(f"<b>Generated:</b> {created_at.strftime('%Y-%m-%d %H:%M:%S') if created_at else 'Unknown'}", summary_style))
+            story.append(Paragraph(f"<b>Total Records:</b> {len(results)}", summary_style))
+            
+            valid_count = sum(1 for r in results if r.is_valid)
+            invalid_count = len(results) - valid_count
+            story.append(Paragraph(f"<b>Valid {validation_type.title()}s:</b> {valid_count}", summary_style))
+            story.append(Paragraph(f"<b>Invalid {validation_type.title()}s:</b> {invalid_count}", summary_style))
+            story.append(Paragraph(f"<b>Success Rate:</b> {(valid_count/len(results)*100):.1f}%", summary_style))
+            story.append(Spacer(1, 20))
+            
+            # Results table
+            if validation_type == 'email':
+                # Email table headers
+                table_data = [['Email', 'Status', 'Syntax', 'Domain', 'MX', 'SMTP', 'Error']]
+                
+                for result in results:
+                    table_data.append([
+                        result.email or 'N/A',
+                        'VALID' if result.is_valid else 'INVALID',
+                        'Yes' if result.syntax_valid else 'No',
+                        'Yes' if result.domain_exists else 'No',
+                        'Yes' if result.mx_record_exists else 'No',
+                        'Yes' if result.smtp_connectable else 'No',
+                        (result.error_message or '')[:30] + ('...' if result.error_message and len(result.error_message) > 30 else '')
+                    ])
+            else:  # phone
+                # Phone table headers
+                table_data = [['Phone Number', 'Status', 'International', 'Country', 'Carrier', 'Error']]
+                
+                for result in results:
+                    table_data.append([
+                        result.phone_number or 'N/A',
+                        'VALID' if result.is_valid else 'INVALID',
+                        result.formatted_international or 'N/A',
+                        result.country_name or 'N/A',
+                        result.carrier or 'N/A',
+                        (result.error_message or '')[:30] + ('...' if result.error_message and len(result.error_message) > 30 else '')
+                    ])
+            
+            # Create table with styling
+            table = Table(table_data)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            story.append(table)
+            
+            # Build PDF
+            doc.build(story)
+            pdf_buffer.seek(0)
+            
+            return pdf_buffer.getvalue(), filename, 'application/pdf'
+            
+        except ImportError:
+            # Fallback to TXT if reportlab not available
+            return self._create_results_txt(results, validation_type, created_at)
+        except Exception as e:
+            logger.error(f"Error creating PDF file: {e}")
+            # Fallback to TXT on error
+            return self._create_results_txt(results, validation_type, created_at)
     
     def _create_results_csv(self, results: list, validation_type: str = 'email') -> str:
         """Create CSV content from validation results"""
