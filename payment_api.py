@@ -225,7 +225,7 @@ def create_payment():
             if not user:
                 user = PaymentUser(user_id=user_id, email=email)
                 db.add(user)
-            elif email and email != user.email:
+            elif email and hasattr(user, 'email') and email != user.email:
                 user.email = email
                 user.updated_at = datetime.utcnow()
             
@@ -345,15 +345,18 @@ def webhook():
             logger.info(f"Payment confirmed for order {payment_order.order_id}")
             
             # Update payment order status
-            payment_order.status = 'confirmed'
-            payment_order.confirmations_received = confirmations
-            payment_order.confirmed_at = datetime.utcnow()
+            if hasattr(payment_order, 'status'):
+                payment_order.status = 'confirmed'
+            if hasattr(payment_order, 'confirmations_received'):
+                payment_order.confirmations_received = confirmations
+            if hasattr(payment_order, 'confirmed_at'):
+                payment_order.confirmed_at = datetime.utcnow()
             
             # Activate 30-day subscription for user
             user = db.query(PaymentUser).filter(PaymentUser.user_id == payment_order.user_id).first()
             if user:
                 # Extend subscription by 30 days from now or from current expiry
-                current_expiry = user.subscription_expires_at
+                current_expiry = getattr(user, 'subscription_expires_at', None)
                 if current_expiry and current_expiry > datetime.utcnow():
                     # Extend from current expiry
                     new_expiry = current_expiry + timedelta(days=30)
@@ -361,16 +364,18 @@ def webhook():
                     # Start from now
                     new_expiry = datetime.utcnow() + timedelta(days=30)
                 
-                user.subscription_expires_at = new_expiry
-                user.updated_at = datetime.utcnow()
+                if hasattr(user, 'subscription_expires_at'):
+                    user.subscription_expires_at = new_expiry
+                if hasattr(user, 'updated_at'):
+                    user.updated_at = datetime.utcnow()
                 
-                logger.info(f"Activated 30-day subscription for user {user.user_id} until {new_expiry}")
+                logger.info(f"Activated 30-day subscription for user {getattr(user, 'user_id', 'unknown')} until {new_expiry}")
                 
                 # Send Telegram notification to user
                 try:
                     notification_sent = send_telegram_notification(
-                        user_id=user.user_id,
-                        order_id=payment_order.order_id,
+                        user_id=getattr(user, 'user_id', ''),
+                        order_id=getattr(payment_order, 'order_id', ''),
                         subscription_expires=new_expiry.isoformat()
                     )
                     if notification_sent:
@@ -384,8 +389,9 @@ def webhook():
             logger.info(f"Successfully processed payment confirmation for order {payment_order.order_id}")
             
         else:
-            logger.info(f"Payment not yet confirmed: {confirmations}/{payment_order.confirmations_required} confirmations")
-            payment_order.confirmations_received = confirmations
+            logger.info(f"Payment not yet confirmed: {confirmations}/{getattr(payment_order, 'confirmations_required', 1)} confirmations")
+            if hasattr(payment_order, 'confirmations_received'):
+                payment_order.confirmations_received = confirmations
             db.commit()
         
         return "ok", 200

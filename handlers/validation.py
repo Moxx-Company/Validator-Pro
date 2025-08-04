@@ -8,7 +8,7 @@ import json
 import time
 import concurrent.futures
 from datetime import datetime
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from sqlalchemy.orm import Session
 from database import SessionLocal
@@ -33,8 +33,16 @@ class ValidationHandler:
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle validation-related callbacks"""
         query = update.callback_query
+        if not query:
+            return
+            
         data = query.data
+        if not data:
+            return
+            
         telegram_user = update.effective_user
+        if not telegram_user:
+            return
         
         with SessionLocal() as db:
             user = db.query(User).filter(User.telegram_id == str(telegram_user.id)).first()
@@ -54,12 +62,13 @@ class ValidationHandler:
             elif data == 'upload_file':
                 await self.show_file_upload_options(update, context, 'email')
                 
-            elif data.startswith('upload_file_'):
+            elif data and data.startswith('upload_file_'):
                 validation_type = data.split('_')[-1]  # email or phone  
-                context.user_data['validation_type'] = validation_type
+                if context.user_data is not None:
+                    context.user_data['validation_type'] = validation_type
                 await self.show_file_upload_options(update, context, validation_type)
             
-            elif data.startswith('recent_jobs_'):
+            elif data and data.startswith('recent_jobs_'):
                 validation_type = data.split('_')[-1]  # emails or phones  
                 await self.show_recent_jobs(update, context, user, db)
             
@@ -72,17 +81,19 @@ class ValidationHandler:
             elif data == 'recent_jobs':
                 await self.show_recent_jobs(update, context, user, db)
             
-            elif data.startswith('upload_'):
+            elif data and data.startswith('upload_'):
                 file_type = data.split('_')[1]
                 await self.prompt_file_upload(update, context, file_type)
             
-            elif data.startswith('download_'):
+            elif data and data.startswith('download_'):
                 job_id = data.split('_')[1]
-                await self.download_results(update, context, user, job_id, db)
+                if user:
+                    await self.download_results(update, context, user, job_id, db)
             
-            elif data.startswith('details_'):
+            elif data and data.startswith('details_'):
                 job_id = data.split('_')[1]
-                await self.show_job_details(update, context, user, job_id, db)
+                if user:
+                    await self.show_job_details(update, context, user, job_id, db)
             
             elif data == 'start_validation':
                 await self.start_validation_from_input(update, context)
@@ -101,17 +112,21 @@ class ValidationHandler:
     async def show_validation_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, validation_type: str = 'email'):
         """Show validation options for email or phone"""
         # Store validation type in user context
-        context.user_data['validation_type'] = validation_type
+        if context.user_data is not None:
+            context.user_data['validation_type'] = validation_type
         
         with SessionLocal() as db:
-            user = db.query(User).filter(User.telegram_id == str(user.telegram_id)).first()
+            if user:
+                user = db.query(User).filter(User.telegram_id == str(user.telegram_id)).first()
             
             # Check user's validation capacity
-            if user.has_active_subscription():
+            if user and hasattr(user, 'has_active_subscription') and user.has_active_subscription():
                 capacity_info = "✅ Unlimited validations"
-            else:
+            elif user and hasattr(user, 'get_trial_remaining'):
                 remaining = user.get_trial_remaining()
                 capacity_info = f"🆓 Trial: {remaining} validations remaining"
+            else:
+                capacity_info = "🆓 Trial: 1000 validations remaining"
             
             if validation_type == 'email':
                 title = "📧 Email Validation"

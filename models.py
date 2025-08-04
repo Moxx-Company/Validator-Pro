@@ -124,7 +124,7 @@ class Subscription(Base):
     expiry_final_notice_sent = Column(Boolean, default=False)  # Final notice sent
     
     # Relationships
-    user = relationship("User", back_populates="subscriptions")
+    user = relationship("User", back_populates="subscriptions", lazy="select")
     
     def __repr__(self):
         return f"<Subscription(id={self.id}, status={self.status})>"
