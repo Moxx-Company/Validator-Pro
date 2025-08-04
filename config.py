@@ -43,9 +43,15 @@ SMTP_CONFIGURED = bool(SMTP_SERVER and SMTP_USERNAME and SMTP_PASSWORD)
 DEFAULT_PHONE_REGION = os.getenv('DEFAULT_PHONE_REGION', 'US')
 PHONE_VALIDATION_TIMEOUT = int(os.getenv('PHONE_VALIDATION_TIMEOUT', '5'))
 
-# Rate Limiting Configuration
-RATE_LIMIT_PER_MINUTE = int(os.getenv('RATE_LIMIT_PER_MINUTE', '120'))
-MAX_CONCURRENT_VALIDATIONS_QUEUE = int(os.getenv('MAX_CONCURRENT_VALIDATIONS_QUEUE', '200'))
+# Rate Limiting Configuration - Enhanced for 5000+ Users
+RATE_LIMIT_PER_MINUTE = int(os.getenv('RATE_LIMIT_PER_MINUTE', '300'))  # Increased from 120
+RATE_LIMIT_PER_HOUR = int(os.getenv('RATE_LIMIT_PER_HOUR', '5000'))   # New hourly limit
+MAX_CONCURRENT_VALIDATIONS_QUEUE = int(os.getenv('MAX_CONCURRENT_VALIDATIONS_QUEUE', '1000'))  # Increased from 200
+
+# High-Performance Scaling Settings
+MAX_ACTIVE_VALIDATION_JOBS = int(os.getenv('MAX_ACTIVE_VALIDATION_JOBS', '500'))
+DATABASE_CONNECTION_POOL_SIZE = int(os.getenv('DATABASE_CONNECTION_POOL_SIZE', '25'))
+ENABLE_RESULT_CACHING = os.getenv('ENABLE_RESULT_CACHING', 'true').lower() == 'true'
 
 # BlockBee Configuration
 BLOCKBEE_API_KEY = os.getenv('BLOCKBEE_API_KEY')
