@@ -583,7 +583,9 @@ When you're done, click "Start Validation" below.
 • Success Rate: {(valid_count/len(phone_numbers)*100):.1f}%
 
 📁 File: {filename or 'Manual Input'}
-⏱️ Completed: {datetime.now().strftime('%H:%M')}"""
+⏱️ Completed: {datetime.now().strftime('%H:%M')}
+
+💡 Download formats: TXT, CSV, Excel, PDF"""
             
             await message.edit_text(
                 final_text,
@@ -630,14 +632,13 @@ When you're done, click "Start Validation" below.
                 )
                 return
             
-            # Check file type
+            # Check file type - PDFs are not supported for input (output only)
             allowed_types = ['text/plain', 'text/csv', 'application/vnd.ms-excel', 
-                           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                           'application/pdf']
+                           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
             
             if document.mime_type not in allowed_types:
                 await update.message.reply_text(
-                    "❌ Unsupported file type. Please upload CSV, Excel, TXT, or PDF files only.",
+                    "❌ Unsupported file type. Please upload CSV, Excel, or TXT files only.\n\n📄 Note: PDF is available as a download format, but not for uploads.",
                     reply_markup=self.keyboards.main_menu()
                 )
                 return
