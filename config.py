@@ -64,7 +64,16 @@ def get_webhook_url():
     if custom_webhook:
         return custom_webhook
     
-    # Since deployed, always use permanent production URL
+    # Use production webhook URL
+    replit_url = os.getenv('REPLIT_DOMAINS')
+    if replit_url:
+        # Extract the main domain from REPLIT_DOMAINS if available
+        domains = replit_url.split(',')
+        main_domain = domains[0].strip() if domains else None
+        if main_domain and main_domain.startswith('http'):
+            return f"{main_domain}/webhook/blockbee"
+    
+    # Fallback to permanent production URL
     return "https://verifyemailphone.replit.app/webhook/blockbee"
 
 BLOCKBEE_WEBHOOK_URL = get_webhook_url()

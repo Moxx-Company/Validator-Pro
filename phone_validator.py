@@ -58,25 +58,54 @@ class PhoneValidator:
     
     def validate_single(self, phone_number: str, default_region: Optional[str] = None) -> PhoneValidationResult:
         """Validate a single phone number with timeout protection"""
-        import signal
+        import threading
+        import time
         
-        def timeout_handler(signum, frame):
-            raise TimeoutError("Phone validation timed out")
+        # Cross-platform timeout implementation using threading
+        result_container = {'result': None, 'completed': False}
         
-        # Set timeout for individual phone validation
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(PHONE_VALIDATION_TIMEOUT)
-        
-        try:
-            # Clean the input first
-            phone_number = phone_number.strip()
-            if not phone_number:
-                return PhoneValidationResult(
+        def validation_worker():
+            try:
+                result_container['result'] = self._validate_phone_internal(phone_number, default_region)
+                result_container['completed'] = True
+            except Exception as e:
+                result_container['result'] = PhoneValidationResult(
                     number=phone_number,
                     is_valid=False,
-                    error_message="Empty phone number"
+                    error_message=f"Validation error: {str(e)}"
                 )
-            
+                result_container['completed'] = True
+        
+        # Start validation in a separate thread
+        worker_thread = threading.Thread(target=validation_worker, daemon=True)
+        worker_thread.start()
+        
+        # Wait for completion with timeout
+        worker_thread.join(timeout=PHONE_VALIDATION_TIMEOUT)
+        
+        if result_container['completed']:
+            return result_container['result']
+        else:
+            # Timeout occurred
+            return PhoneValidationResult(
+                number=phone_number,
+                is_valid=False,
+                error_message="Phone validation timed out"
+            )
+    
+    def _validate_phone_internal(self, phone_number: str, default_region: Optional[str] = None) -> PhoneValidationResult:
+        """Internal phone validation method"""
+        
+        # Clean the input first
+        phone_number = phone_number.strip()
+        if not phone_number:
+            return PhoneValidationResult(
+                number=phone_number,
+                is_valid=False,
+                error_message="Empty phone number"
+            )
+        
+        try:
             # Parse the number - be strict about format
             if phone_number.startswith('+'):
                 # International format
@@ -143,12 +172,6 @@ class PhoneValidator:
                 is_valid=False,
                 error_message=f"Cannot parse number: {str(e)}"
             )
-        except TimeoutError:
-            return PhoneValidationResult(
-                number=phone_number,
-                is_valid=False,
-                error_message="Phone validation timeout - number took too long to process"
-            )
         except Exception as e:
             logger.error(f"Error validating phone {phone_number}: {e}")
             return PhoneValidationResult(
@@ -156,9 +179,6 @@ class PhoneValidator:
                 is_valid=False,
                 error_message=f"Validation error: {str(e)}"
             )
-        finally:
-            # Always clear the alarm
-            signal.alarm(0)
     
     async def validate_batch_async(self, phone_numbers: List[str], default_region: Optional[str] = None) -> List[PhoneValidationResult]:
         """Validate a batch of phone numbers asynchronously with timeout protection"""

@@ -11,6 +11,7 @@ from flask import Flask, request, jsonify
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Boolean, Text
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import SQLAlchemyError, DatabaseError
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
@@ -256,12 +257,17 @@ def create_payment():
                 'confirmations_required': 1,
                 'message': f'Send exactly {amount_crypto} {crypto_type.upper()} to the address above'
             })
-        except Exception as db_e:
+        except (SQLAlchemyError, DatabaseError) as db_e:
             db.rollback()
             logger.error(f"Database error creating payment: {db_e}")
             return jsonify({'error': f'Database error: {str(db_e)}'}), 500
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Unexpected error creating payment: {e}")
+            return jsonify({'error': 'Internal server error'}), 500
         finally:
-            db.close()
+            if db:
+                db.close()
         
     except Exception as e:
         logger.error(f"Error creating payment: {e}")
@@ -273,6 +279,7 @@ def webhook():
     BlockBee webhook endpoint
     Processes payment confirmations and activates subscriptions
     """
+    db = None
     try:
         # Get webhook data
         webhook_data = request.get_json() or {}
@@ -287,9 +294,16 @@ def webhook():
         order_id = webhook_data.get('order_id')
         address_in = webhook_data.get('address_in')
         txid = webhook_data.get('txid_in', webhook_data.get('txid'))
-        confirmations = int(webhook_data.get('confirmations', 0))
+        try:
+            confirmations = int(webhook_data.get('confirmations', 0))
+        except (ValueError, TypeError):
+            confirmations = 0
+        
         status = webhook_data.get('status')
-        amount = float(webhook_data.get('value_coin', 0))
+        try:
+            amount = float(webhook_data.get('value_coin', 0))
+        except (ValueError, TypeError):
+            amount = 0.0
         
         if not order_id and not address_in:
             logger.error("No order_id or address_in found in webhook")
@@ -376,12 +390,18 @@ def webhook():
         
         return "ok", 200
         
+    except (SQLAlchemyError, DatabaseError) as db_e:
+        logger.error(f"Database error in webhook processing: {db_e}")
+        if db:
+            db.rollback()
+        return "ok", 200
     except Exception as e:
         logger.error(f"Webhook processing error: {e}")
         # Still return ok to prevent endless retries
         return "ok", 200
     finally:
-        db.close()
+        if db:
+            db.close()
 
 @app.route('/payment/<order_id>/status', methods=['GET'])
 def get_payment_status(order_id):

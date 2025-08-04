@@ -226,6 +226,7 @@ class BlockBeeService:
                 uri = address
             
             # Generate QR code
+            import qrcode
             import qrcode.constants
             qr = qrcode.QRCode(
                 version=1,
