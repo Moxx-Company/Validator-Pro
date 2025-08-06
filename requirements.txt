@@ -50,7 +50,6 @@ python-dotenv==1.1.1
 python-telegram-bot==21.7
 pytz==2025.2
 qrcode==8.2
--e git+https://github.com/Dipec001/EmailPhoneVerifyBot.git@4937381738ef07a65bcc825da6d38a364d6f8829#egg=repl_nix_workspace
 reportlab==4.4.3
 requests==2.32.4
 requests-oauthlib==2.0.0
