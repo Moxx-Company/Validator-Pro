@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+
+# Environments
+.env
+
+# OS
+.DS_Store
+
+# Binary folders
+/bin/
+*.bin
+
+# IDE configs
+.vscode/
+.idea/
