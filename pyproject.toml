@@ -21,11 +21,13 @@ dependencies = [
     "psutil>=7.0.0",
     "psycopg2-binary>=2.9.10",
     "pyjwt>=2.10.1",
+    "python-dotenv>=1.1.1",
     "python-telegram-bot[all,webhooks]==21.7",
     "qrcode[pil]>=8.2",
     "reportlab>=4.4.3",
     "requests>=2.32.4",
     "sqlalchemy>=2.0.42",
-    "telegram>=0.0.1",
     "weasyprint>=66.0",
 ]
+[tool.setuptools]
+packages = ["handlers", "services"]
