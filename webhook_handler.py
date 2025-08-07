@@ -38,7 +38,7 @@ def create_webhook_app():
             
             # Make request to new system
             response = requests.post(
-                'https://emailphoneverify.up.railway.app/webhook',
+                'http://localhost:5000/webhook',
                 json=webhook_data,
                 timeout=30
             )
