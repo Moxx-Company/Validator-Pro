@@ -28,27 +28,27 @@ def create_webhook_app():
         return jsonify({'status': 'ok'}), 200
     
     # @app.route('/webhook', methods=['POST'])
-    # @app.route('/webhook/blockbee', methods=['POST', 'GET'])
-    # def redirect_to_new_system():
-    #     """Redirect webhooks to new Payment API system"""
-    #     import requests
-    #     try:
-    #         # Forward webhook to new payment API system
-    #         webhook_data = request.get_json() or dict(request.args)
+    @app.route('/webhook/blockbee', methods=['POST', 'GET'])
+    def redirect_to_new_system():
+        """Redirect webhooks to new Payment API system"""
+        import requests
+        try:
+            # Forward webhook to new payment API system
+            webhook_data = request.get_json() or dict(request.args)
             
-    #         # Make request to new system
-    #         response = requests.post(
-    #             'https://emailphoneverify.up.railway.app/webhook',
-    #             json=webhook_data,
-    #             timeout=30
-    #         )
+            # Make request to new system
+            response = requests.post(
+                'http://localhost:5000/webhook',
+                json=webhook_data,
+                timeout=30
+            )
             
-    #         logger.info(f"Forwarded webhook to new system: {response.status_code}")
-    #         return response.text, response.status_code
+            logger.info(f"Forwarded webhook to new system: {response.status_code}")
+            return response.text, response.status_code
             
-    #     except Exception as e:
-    #         logger.error(f"Error forwarding webhook to new system: {e}")
-    #         return "ok", 200  # Always return ok to prevent retries
+        except Exception as e:
+            logger.error(f"Error forwarding webhook to new system: {e}")
+            return "ok", 200  # Always return ok to prevent retries
     
     @app.route('/webhook/blockbee/legacy', methods=['POST', 'GET'])
     @app.route('/webhook/blockbee/legacy/<user_id>/<currency>/<amount_usd>', methods=['POST'])
