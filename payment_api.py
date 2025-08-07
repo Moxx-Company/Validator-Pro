@@ -280,11 +280,12 @@ def webhook():
     BlockBee webhook endpoint
     Processes payment confirmations and activates subscriptions
     """
-    logger.info(f"Webhook received: Nice")
-    logger.info(f"Webhook received: {request.json or request.args}")
+    logger.info(f"Webhook received")
 
+    # Verify BlockBee signature
+    # This will raise an error if the signature is invalid
     if not verify_blockbee_signature(request):
-        app.logger.warning("Invalid BlockBee signature")
+        logger.error("Invalid BlockBee signature")
         return "Invalid signature", 401
     
     db = None
