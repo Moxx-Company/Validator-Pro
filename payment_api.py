@@ -273,7 +273,7 @@ def create_payment():
         logger.error(f"Error creating payment: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/webhook', methods=['POST'])
+@app.route('webhook/blockbee', methods=['POST'])
 def webhook():
     """
     BlockBee webhook endpoint
