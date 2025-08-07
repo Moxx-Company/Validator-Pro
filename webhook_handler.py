@@ -40,6 +40,7 @@ def create_webhook_app():
             response = requests.post(
                 'http://localhost:5002/webhook',
                 json=webhook_data,
+                headers={"Content-Type": "application/json"},
                 timeout=30
             )
             
