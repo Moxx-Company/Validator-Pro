@@ -6,6 +6,7 @@ from flask import Flask, request, jsonify
 from database import SessionLocal
 from models import Subscription
 from datetime import datetime, timedelta
+from payment_api import webhook
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +38,13 @@ def create_webhook_app():
             webhook_data = request.get_json() or dict(request.args)
             
             # Make request to new system
-            response = requests.post(
-                'http://localhost:5000/webhook',
-                json=webhook_data,
-                timeout=30
-            )
+            # response = requests.post(
+            #     'http://localhost:5000/webhook',
+            #     json=webhook_data,
+            #     timeout=30
+            # )
+        
+            return webhook(webhook_data)
             
             logger.info(f"Forwarded webhook to new system: {response.status_code}")
             return response.text, response.status_code

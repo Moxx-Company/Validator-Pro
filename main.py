@@ -19,6 +19,8 @@ from webhook_handler import create_webhook_app
 from config import TELEGRAM_BOT_TOKEN
 from subscription_expiry_notifier import run_expiry_check
 
+app = create_webhook_app()
+
 # Configure logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -188,4 +190,4 @@ def main():
         raise
 
 if __name__ == '__main__':
-    main()
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
