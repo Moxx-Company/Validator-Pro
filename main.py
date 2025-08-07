@@ -156,18 +156,19 @@ def main():
         application = Application.builder().token(str(TELEGRAM_BOT_TOKEN)).build()
 
         # ─── DEBUG: Raw-update logger ──────────────────────────────────
-        from telegram.ext import MessageHandler, filters
 
-        async def raw_update_logger(update, context):
-            logger.info(f"RAW UPDATE: {update}")
+        logger.info(f"RAW UPDATE")
             # Return nothing—just log and let other handlers run
 
-        # …
+        import asyncio
 
-        application.add_handler(
-            MessageHandler(filters.ALL, raw_update_logger),
-            group=0
-        )
+        async def heart_beat():
+            while True:
+                logger.info("💓 Bot is running…")
+                await asyncio.sleep(60)
+
+        application.job_queue.run_repeating(lambda _, __: asyncio.create_task(heart_beat()), interval=60, first=0)
+
 
         # ───────────────────────────────────────────────────────────────
         
