@@ -279,7 +279,7 @@ def webhook():
     BlockBee webhook endpoint
     Processes payment confirmations and activates subscriptions
     """
-    logger.info(f"Webhook received: Nice try")
+    logger.info(f"Webhook received: Nice")
     logger.info(f"Webhook received: {request.json or request.args}")
     db = None
     try:

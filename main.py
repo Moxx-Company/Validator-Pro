@@ -18,6 +18,7 @@ from database import init_database
 from webhook_handler import create_webhook_app
 from config import TELEGRAM_BOT_TOKEN
 from subscription_expiry_notifier import run_expiry_check
+import payment_api
 
 # Configure logging
 logging.basicConfig(
@@ -55,6 +56,15 @@ You can now validate unlimited emails and phone numbers!
             logger.info(f"Payment notification sent to user {user_id}")
     except Exception as e:
         logger.error(f"Failed to send payment notification: {e}")
+
+def run_payment_api():
+    # use the app that payment_api.py already instantiates
+    payment_api.app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=False,
+        use_reloader=False
+    )
 
 def run_webhook_server():
     """Run the Flask webhook server in a separate thread (Legacy System)"""
@@ -133,6 +143,8 @@ def main():
         init_database()
         logger.info("Database initialized successfully")
         
+        # Start payment API in background thread
+        threading.Thread(target=run_payment_api, daemon=True).start()
         # Start webhook server in background
         webhook_thread = threading.Thread(target=run_webhook_server, daemon=True)
         webhook_thread.start()

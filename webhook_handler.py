@@ -27,8 +27,8 @@ def create_webhook_app():
         """Additional health check endpoint"""
         return jsonify({'status': 'ok'}), 200
     
-    # @app.route('/webhook', methods=['POST'])
-    @app.route('/webhook/blockbee', methods=['POST'])
+    @app.route('/webhook', methods=['POST'])
+    @app.route('/webhook/blockbee', methods=['POST', 'GET'])
     def redirect_to_new_system():
         """Redirect webhooks to new Payment API system"""
         import requests
@@ -38,9 +38,8 @@ def create_webhook_app():
             
             # Make request to new system
             response = requests.post(
-                'http://localhost:5002/webhook',
+                'http://localhost:5000/webhook',
                 json=webhook_data,
-                headers={"Content-Type": "application/json"},
                 timeout=30
             )
             
