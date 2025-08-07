@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from models import User, Subscription
 from config import SUBSCRIPTION_PRICE_USD, SUBSCRIPTION_DURATION_DAYS, SUPPORTED_CRYPTOS
 from services.blockbee_service import BlockBeeService
-
+from utils import validate_crypto_transaction
 import logging
 
 logger = logging.getLogger(__name__)
