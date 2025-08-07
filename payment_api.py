@@ -14,7 +14,11 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError, DatabaseError
 from sqlalchemy.dialects.postgresql import UUID
 from services.blockbee_signature import verify_blockbee_signature
+from models import Subscription
+from datetime import datetime, timedelta
+from config import SUBSCRIPTION_DURATION_DAYS
 import uuid
+from models import Subscription
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -381,6 +385,61 @@ def webhook():
                     user.updated_at = datetime.utcnow()
                 
                 logger.info(f"Activated 30-day subscription for user {getattr(user, 'user_id', 'unknown')} until {new_expiry}")
+
+                # SUBSCRIPTION ACTIVATION HERE
+
+                # Look for a pending subscription for this order (or payment_address)
+                sub = (
+                    db.query(Subscription)
+                    .filter(
+                        Subscription.user_id == payment_order.user_id,
+                        Subscription.payment_address == payment_order.payment_address,
+                        Subscription.status == 'pending'
+                    )
+                    .first()
+                )
+
+                if sub:
+                    logger.info(f"Found pending subscription (id={sub.id}), activating now")
+                    # Found the pending row—activate it
+                    sub.status = 'active'
+                    sub.activated_at = datetime.utcnow()
+                    sub.expires_at = sub.activated_at + timedelta(days=SUBSCRIPTION_DURATION_DAYS)
+                    logger.info(f"Subscription id={sub.id} activated until {sub.expires_at!s}")
+
+                else:
+                    # No pending sub—for safety, fall back to extending an existing active one
+                    sub = (
+                        db.query(Subscription)
+                        .filter(
+                            Subscription.user_id == payment_order.user_id,
+                            Subscription.status == 'active',
+                            Subscription.expires_at > datetime.utcnow()
+                        )
+                        .first()
+                    )
+                    if sub:
+                        # Extend current active subscription
+                        old_expiry = sub.expires_at
+                        sub.expires_at = sub.expires_at + timedelta(days=SUBSCRIPTION_DURATION_DAYS)
+                        logger.info(f"Extended active subscription id={sub.id} from {old_expiry!s} to {sub.expires_at!s}")
+                    else:
+                        # No sub at all—create a new one
+                        logger.info(f"No existing subscription found, creating new for user {payment_order.user_id}")
+                        sub = Subscription(
+                            user_id=payment_order.user_id,
+                            status='active',
+                            amount_usd=payment_order.amount_fiat,
+                            currency=payment_order.crypto_type,
+                            payment_address=payment_order.payment_address,
+                            payment_amount_crypto=amount,
+                            payment_currency_crypto=payment_order.crypto_type,
+                            transaction_hash=txid,
+                            activated_at=datetime.utcnow(),
+                            expires_at=datetime.utcnow() + timedelta(days=SUBSCRIPTION_DURATION_DAYS)
+                        )
+                        db.add(sub)
+                        logger.info(f"Created and activated new subscription id={sub.id} until {sub.expires_at!s}")
                 
                 # Send Telegram notification to user
                 try:
