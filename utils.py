@@ -7,6 +7,9 @@ import hashlib
 from datetime import datetime, timedelta
 from typing import List, Optional
 import pandas as pd
+import logging
+
+logger = logging.getLogger(__name__)
 
 def is_valid_email_syntax(email: str) -> bool:
     """Check if email has valid syntax"""
