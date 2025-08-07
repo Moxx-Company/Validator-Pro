@@ -154,6 +154,15 @@ def main():
         logger.info("Starting Telegram bot...")
         # TELEGRAM_BOT_TOKEN is validated in config.py to ensure it's not None
         application = Application.builder().token(str(TELEGRAM_BOT_TOKEN)).build()
+
+        # ─── DEBUG: Raw-update logger ──────────────────────────────────
+        from telegram.ext import MessageHandler, filters
+        application.add_handler(
+            MessageHandler(filters.ALL, 
+                           lambda update, context: logger.info(f"RAW UPDATE: {update}")),
+            group=0
+        )
+        # ───────────────────────────────────────────────────────────────
         
         # Set global bot reference for webhook notifications
         global bot_application
