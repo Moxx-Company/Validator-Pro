@@ -157,11 +157,18 @@ def main():
 
         # ─── DEBUG: Raw-update logger ──────────────────────────────────
         from telegram.ext import MessageHandler, filters
+
+        async def raw_update_logger(update, context):
+            logger.info(f"RAW UPDATE: {update}")
+            # Return nothing—just log and let other handlers run
+
+        # …
+
         application.add_handler(
-            MessageHandler(filters.ALL, 
-                           lambda update, context: logger.info(f"RAW UPDATE: {update}")),
+            MessageHandler(filters.ALL, raw_update_logger),
             group=0
         )
+
         # ───────────────────────────────────────────────────────────────
         
         # Set global bot reference for webhook notifications
