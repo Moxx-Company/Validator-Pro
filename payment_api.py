@@ -13,6 +13,7 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError, DatabaseError
 from sqlalchemy.dialects.postgresql import UUID
+from services.blockbee_signature import verify_blockbee_signature
 import uuid
 
 # Configure logging
@@ -281,6 +282,11 @@ def webhook():
     """
     logger.info(f"Webhook received: Nice")
     logger.info(f"Webhook received: {request.json or request.args}")
+
+    if not verify_blockbee_signature(request):
+        app.logger.warning("Invalid BlockBee signature")
+        return "Invalid signature", 401
+    
     db = None
     try:
         # Get webhook data

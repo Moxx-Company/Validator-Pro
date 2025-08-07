@@ -64,6 +64,13 @@ if not BLOCKBEE_API_KEY:
 
 BLOCKBEE_BASE_URL = os.getenv('BLOCKBEE_BASE_URL', 'https://api.blockbee.io')
 
+BLOCKBEE_PUBLIC_KEY = os.getenv('BLOCKBEE_PUBLIC_KEY', """----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC3FT0Ym8b3myVxhQW7ESuuu6lo
+dGAsUJs4fq+Ey//jm27jQ7HHHDmP1YJO7XE7Jf/0DTEJgcw4EZhJFVwsk6d3+4fy
+Bsn0tKeyGMiaE6cVkX0cy6Y85o8zgc/CwZKc0uw6d5siAo++xl2zl+RGMXCELQVE
+ox7pp208zTvown577wIDAQAB
+-----END PUBLIC KEY-----""")    
+
 # External API URLs
 COINGECKO_API_BASE = os.getenv('COINGECKO_API_BASE', 'https://api.coingecko.com/api/v3')
 TELEGRAM_API_BASE = os.getenv('TELEGRAM_API_BASE', 'https://api.telegram.org')
