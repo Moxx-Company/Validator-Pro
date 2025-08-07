@@ -154,23 +154,6 @@ def main():
         logger.info("Starting Telegram bot...")
         # TELEGRAM_BOT_TOKEN is validated in config.py to ensure it's not None
         application = Application.builder().token(str(TELEGRAM_BOT_TOKEN)).build()
-
-        # ─── DEBUG: Raw-update logger ──────────────────────────────────
-
-        logger.info(f"RAW UPDATE")
-            # Return nothing—just log and let other handlers run
-
-        import asyncio
-
-        async def heart_beat():
-            while True:
-                logger.info("💓 Bot is running…")
-                await asyncio.sleep(60)
-
-        application.job_queue.run_repeating(lambda _, __: asyncio.create_task(heart_beat()), interval=60, first=0)
-
-
-        # ───────────────────────────────────────────────────────────────
         
         # Set global bot reference for webhook notifications
         global bot_application
