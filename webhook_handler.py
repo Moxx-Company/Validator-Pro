@@ -28,7 +28,7 @@ def create_webhook_app():
         return jsonify({'status': 'ok'}), 200
     
     # @app.route('/webhook', methods=['POST'])
-    @app.route('/webhook/blockbee', methods=['POST', 'GET'])
+    @app.route('/webhook/blockbee', methods=['POST'])
     def redirect_to_new_system():
         """Redirect webhooks to new Payment API system"""
         import requests
