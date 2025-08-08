@@ -191,16 +191,40 @@ Select your preferred payment method:
                 "🔄 Creating payment address...\nPlease wait a moment.",
                 parse_mode='Markdown'
             )
+
+            # Check for existing pending subscription and cancel it first
+            existing_pending = db.query(Subscription).filter(
+                Subscription.user_id == user.id,
+                Subscription.status == 'pending'
+            ).first()
+            if existing_pending:
+                logger.info(f"Canceling existing pending subscription for user {user.id}")
+                existing_pending.status = "cancelled"
+                db.commit()
+
+            # create a subscription row first
+            subscription = Subscription(
+                user_id=user.id,
+                status='pending',
+                amount_usd=SUBSCRIPTION_PRICE_USD,
+                currency='USD',
+            )
+            db.add(subscription)
+            db.commit()
+            db.refresh(subscription)
             
             # Create BlockBee service and generate payment address
             blockbee = BlockBeeService()
             payment_result = blockbee.create_payment_address(
                 currency=payment_method,
                 user_id=str(user.id),
-                amount_usd=SUBSCRIPTION_PRICE_USD
+                amount_usd=SUBSCRIPTION_PRICE_USD,
+                invoice_id=str(subscription.id),    # 👈 drives address uniqueness
             )
             
             if not payment_result['success']:
+                subscription.status = 'cancelled'
+                db.commit()
                 await update.callback_query.edit_message_text(
                     f"❌ Error creating payment: {payment_result.get('error', 'Unknown error')}",
                     reply_markup=self.keyboards.back_to_menu()
@@ -208,35 +232,21 @@ Select your preferred payment method:
                 return
 
             logger.info(f"Payment address created: {payment_result['address']} for user {user.id}")
-            
-            # Check for existing pending subscription and cancel it first
-            existing_pending = db.query(Subscription).filter(
-                Subscription.user_id == user.id,
-                Subscription.status == 'pending'
-            ).first()
-            
-            if existing_pending:
-                logger.info(f"Canceling existing pending subscription for user {user.id}")
-                existing_pending.status = 'cancelled'
-                db.commit()
-            
-            # Create pending subscription record
-            subscription = Subscription(
-                user_id=user.id,
-                status='pending',
-                amount_usd=SUBSCRIPTION_PRICE_USD,
-                currency='USD',
-                payment_address=payment_result['address'],
-                payment_amount_crypto=payment_result['amount_crypto'],
-                payment_currency_crypto=payment_method.upper()
-            )
-            db.add(subscription)
+
+            # update the SAME subscription, do not create a new one
+            subscription.payment_address = payment_result["address"]
+            subscription.payment_amount_crypto = payment_result["amount_crypto"]
+            subscription.payment_currency_crypto = payment_method.upper()
+            subscription.status = "pending"
+            # optional, store for debugging
+            # subscription.blockbee_reference = payment_result.get("reference")
+            # subscription.blockbee_callback = payment_result.get("callback_used")
             db.commit()
             db.refresh(subscription)
             
-            logger.info(f"✅ Created NEW subscription with unique address: {payment_result['address']}")
+            logger.info(f"✅ Using subscription {subscription.id} with address {subscription.payment_address}")
             
-            # Format payment instructions
+            # Format/Show payment instructions
             crypto_name = SUPPORTED_CRYPTOS[payment_method]
             payment_text = f"""
 💰 **Payment Instructions - {crypto_name}**

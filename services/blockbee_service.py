@@ -5,6 +5,7 @@ import os
 import requests
 import logging
 import qrcode
+from urllib.parse import urlencode
 from io import BytesIO
 from typing import Dict, Optional
 from config import BLOCKBEE_API_KEY, BLOCKBEE_WEBHOOK_URL, SUPPORTED_CRYPTOS, BLOCKBEE_BASE_URL, COINGECKO_API_BASE
@@ -17,8 +18,8 @@ class BlockBeeService:
         self.base_url = BLOCKBEE_BASE_URL
         self.webhook_url = BLOCKBEE_WEBHOOK_URL
     
-    def create_payment_address(self, currency: str, user_id: str, amount_usd: float) -> Dict:
-        """Create payment address via BlockBee API"""
+    def create_payment_address(self, currency: str, user_id: str, amount_usd: float, invoice_id: str) -> Dict:
+        """Create payment address via BlockBee API forcing a NEW address per invoice_id"""
         try:
             # Map our currency codes to BlockBee codes
             currency_mapping = {
@@ -36,15 +37,22 @@ class BlockBeeService:
             if not blockbee_currency:
                 raise ValueError(f"Unsupported currency: {currency}")
             
+             # Build a UNIQUE callback per invoice
+            qs = urlencode({"invoice_id": str(invoice_id), "uid": str(user_id), "coin": blockbee_currency})
+            callback_url = f"{self.webhook_url.rstrip('?')}" + ("&" if "?" in self.webhook_url else "?") + qs
+            logger.info(f"Using unique callback URL: {callback_url}")
+            
             # Use simple callback URL - BlockBee will add their own parameters
             # We'll identify the payment by the address when webhook arrives
-            callback_url = self.webhook_url
-            logger.info(f"Using simple callback URL: {callback_url}")
+            # callback_url = self.webhook_url
+            # logger.info(f"Using simple callback URL: {callback_url}")
             
             # Request payment address from BlockBee API (no receiving address needed)
             params = {
                 'callback': callback_url,
                 'apikey': self.api_key,
+                # optional but useful for BlockBee logs, webhooks often echo it back
+                "order_id": str(invoice_id),
                 'convert': 1,
                 'pending': 1,  # Notify for pending transactions
                 'post': 1,     # Use POST for webhooks  
@@ -73,6 +81,7 @@ class BlockBeeService:
                     
                     logger.info(f"✅ BlockBee created UNIQUE address: {payment_address}")
                     logger.info(f"Reference ID: {reference_id}")
+                    logger.info(f"BlockBee returned address: {payment_address}, ref: {reference_id or '(none)'}")
                     
                     # Verify address is unique by checking our database
                     self._log_address_uniqueness(payment_address, user_id)
@@ -90,7 +99,9 @@ class BlockBeeService:
                         'amount_usd': amount_usd,
                         'currency': currency,
                         'qr_code': qr_image,
-                        'reference': reference_id
+                        'reference': reference_id,
+                        "callback_used": callback_url,
+                        "invoice_id": str(invoice_id),
                     }
                 else:
                     logger.error(f"BlockBee API error: {data.get('error', 'Unknown error')}")
