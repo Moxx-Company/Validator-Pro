@@ -117,8 +117,8 @@ def create_webhook_app():
                 expected_amount = float(subscription.amount_usd) if subscription.amount_usd else 0.0
                 
                 from config import TOLERANCE
-                tolerance = TOLERANCE if TOLERANCE else 2.00  #
-                # Only apply $3 tolerance when payment is less than expected
+                tolerance = TOLERANCE if TOLERANCE else 2  #
+                # Only apply $2 tolerance when payment is less than expected
                 if payment_amount < expected_amount:
                     shortage = expected_amount - payment_amount
                     if shortage > tolerance:
