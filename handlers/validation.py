@@ -841,7 +841,8 @@ When you're done, click "Start Validation" below.
                 # Update progress tracker
                 results = db.query(ValidationResult).filter(ValidationResult.job_id == job.id).all()
                 current_valid = sum(1 for r in results if r.is_valid)
-                progress_tracker.update_progress(job.id, validated_count, current_valid)
+                current_invalid = len(results) - current_valid
+                progress_tracker.update_progress(job.id, validated_count, current_valid, current_invalid)
                 
                 # Update UI with formatted progress
                 try:
