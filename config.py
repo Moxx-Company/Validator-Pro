@@ -21,7 +21,7 @@ if not ADMIN_CHAT_ID:
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///email_validator.db')
 
 # Subscription Configuration
-SUBSCRIPTION_PRICE_USD = 1 #float(os.getenv('SUBSCRIPTION_PRICE_USD', '1'))
+SUBSCRIPTION_PRICE_USD = float(os.getenv('SUBSCRIPTION_PRICE_USD', '1'))
 TRIAL_VALIDATION_LIMIT = int(os.getenv('TRIAL_VALIDATION_LIMIT', '1000'))  # Combined limit for emails and phones
 TRIAL_EMAIL_LIMIT = int(os.getenv('TRIAL_EMAIL_LIMIT', '10000'))  # Keep for backward compatibility
 SUBSCRIPTION_DURATION_DAYS = int(os.getenv('SUBSCRIPTION_DURATION_DAYS', '30'))
