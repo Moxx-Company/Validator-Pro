@@ -9,8 +9,7 @@ import asyncio
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Boolean, Text
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import SQLAlchemyError, DatabaseError
 from sqlalchemy.dialects.postgresql import UUID
 from services.blockbee_signature import verify_blockbee_signature
@@ -18,7 +17,7 @@ from models import Subscription
 from datetime import datetime, timedelta
 from config import SUBSCRIPTION_DURATION_DAYS
 import uuid
-from models import Subscription
+from urllib.parse import urlencode, quote
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -182,15 +181,23 @@ def create_payment():
         
         # Generate unique order ID
         order_id = f"order_{uuid.uuid4().hex[:12]}"
+
+        qs = urlencode({
+            "order_id": order_id,
+            "uid": user_id,
+            "coin": crypto_type.lower(),
+        })
+        raw_callback = f"{WEBHOOK_BASE_URL}/webhook?{qs}"
+        encoded_callback = quote(raw_callback, safe="")  # BlockBee recommends encoding
         
         # Prepare BlockBee API request
-        callback_url = f"{WEBHOOK_BASE_URL}/webhook"
+        # callback_url = f"{WEBHOOK_BASE_URL}/webhook"
         
         # Use BlockBee's /pay endpoint
         blockbee_url = f"{BLOCKBEE_BASE_URL}/{crypto_type}/create/"
         
         payload = {
-            'callback': callback_url,
+            'callback': encoded_callback, # 👈 now unique per order
             'apikey': BLOCKBEE_API_KEY,
             'order_id': order_id,
             'value': amount_usd,  # Amount in USD
@@ -245,6 +252,7 @@ def create_payment():
                 qr_code_url=qr_code_url,
                 status='pending',
                 confirmations_required=1
+                # callback_used=raw_callback,  # (optional)  helps with reconciling and with BlockBee’s logs
             )
             
             db.add(payment_order)
