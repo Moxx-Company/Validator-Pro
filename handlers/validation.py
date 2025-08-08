@@ -513,6 +513,7 @@ When you're done, click "Start Validation" below.
             batch_size = 50
             validated_count = 0
             valid_count = 0
+            invalid_count = 0
             start_time = time.time()
             
             for i in range(0, len(phone_numbers), batch_size):
@@ -542,11 +543,16 @@ When you're done, click "Start Validation" below.
                     
                     if result.is_valid:
                         valid_count += 1
+                    else:
+                        invalid_count += 1
                 
-                validated_count += len(batch_results)
+                # Processed == valid + invalid seen so far
+                validated_count = valid_count + invalid_count
+
+                logger.debug(f"[Job {job.id}] processed={validated_count} valid={valid_count} invalid={invalid_count}")
                 
                 # Update progress tracker
-                progress_tracker.update_progress(job.id, validated_count, valid_count)
+                progress_tracker.update_progress(job.id, validated_count, valid_count, invalid_count)
                 
                 # Get formatted progress
                 progress_text = progress_tracker.get_formatted_progress(job.id)
