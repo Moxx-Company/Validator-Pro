@@ -3,12 +3,13 @@
 ## Required Environment Variables
 
 ### Core System Configuration
+
 ```bash
 # Telegram Bot Configuration (REQUIRED)
 TELEGRAM_BOT_TOKEN=your_bot_token_from_botfather
 ADMIN_CHAT_ID=your_telegram_user_id_for_admin_access
 
-# Database Configuration 
+# Database Configuration
 DATABASE_URL=postgresql://username:password@host:port/database_name
 
 # BlockBee Cryptocurrency Payment API (REQUIRED)
@@ -17,6 +18,7 @@ BLOCKBEE_WEBHOOK_URL=https://yourdomain.replit.app/webhook/blockbee
 ```
 
 ### Optional SMTP Configuration (For Enhanced Email Validation)
+
 ```bash
 # Gmail Configuration Example
 SMTP_SERVER=smtp.gmail.com
@@ -41,9 +43,10 @@ SMTP_HELO_DOMAIN=validator.com
 ```
 
 ### System Configuration (Optional - Defaults Provided)
+
 ```bash
 # Subscription & Pricing
-SUBSCRIPTION_PRICE_USD=9.99
+SUBSCRIPTION_PRICE_USD=5.00
 SUBSCRIPTION_DURATION_DAYS=30
 TRIAL_VALIDATION_LIMIT=1000
 
@@ -66,6 +69,7 @@ TELEGRAM_API_BASE=https://api.telegram.org
 ## How to Obtain Required Keys
 
 ### 1. Telegram Bot Token
+
 1. Message @BotFather on Telegram
 2. Use /newbot command
 3. Follow prompts to create your bot
@@ -73,6 +77,7 @@ TELEGRAM_API_BASE=https://api.telegram.org
 5. Get your Telegram user ID from @userinfobot
 
 ### 2. BlockBee API Key
+
 1. Visit https://blockbee.io
 2. Create account and verify email
 3. Access API dashboard
@@ -80,18 +85,23 @@ TELEGRAM_API_BASE=https://api.telegram.org
 5. Configure supported cryptocurrencies
 
 ### 3. SMTP Credentials (Optional but Recommended)
+
 #### Gmail:
+
 1. Enable 2-factor authentication
 2. Generate app-specific password in Google Account settings
 3. Use this password, not your regular Gmail password
 
 #### Outlook:
+
 1. Enable 2-factor authentication in Microsoft account
 2. Generate app password in security settings
 3. Use app password for SMTP_PASSWORD
 
 ### 4. Database Setup
+
 For PostgreSQL (recommended for production):
+
 ```bash
 # Example connection string
 DATABASE_URL=postgresql://validator_user:secure_password@db.server.com:5432/validator_db
@@ -100,6 +110,7 @@ DATABASE_URL=postgresql://validator_user:secure_password@db.server.com:5432/vali
 ## Production Deployment Checklist
 
 ### Pre-Deployment
+
 - [ ] Obtain Telegram bot token from BotFather
 - [ ] Get BlockBee API key and configure cryptocurrencies
 - [ ] Set up PostgreSQL database
@@ -107,12 +118,14 @@ DATABASE_URL=postgresql://validator_user:secure_password@db.server.com:5432/vali
 - [ ] Set ADMIN_CHAT_ID to your Telegram user ID
 
 ### Environment Setup
+
 - [ ] Add all required environment variables to Replit Secrets
 - [ ] Verify BLOCKBEE_WEBHOOK_URL points to your deployed app
 - [ ] Test database connection
 - [ ] Validate SMTP configuration if used
 
 ### Security Considerations
+
 - [ ] Use strong, unique passwords for database
 - [ ] Store all sensitive data in environment variables
 - [ ] Never commit API keys to version control
@@ -120,6 +133,7 @@ DATABASE_URL=postgresql://validator_user:secure_password@db.server.com:5432/vali
 - [ ] Regularly rotate API keys and passwords
 
 ### Testing Before Launch
+
 - [ ] Test email validation with various email types
 - [ ] Test phone validation with international numbers
 - [ ] Verify cryptocurrency payment flow end-to-end
@@ -130,11 +144,13 @@ DATABASE_URL=postgresql://validator_user:secure_password@db.server.com:5432/vali
 ## System Architecture
 
 ### Port Configuration
+
 - **Port 5000**: BlockBee Payment API Server
 - **Port 5001**: File Server (validation results downloads)
 - **Port 5002**: Webhook Handler (internal bot communications)
 
 ### Service Dependencies
+
 1. **PostgreSQL Database**: User data, subscriptions, validation results
 2. **BlockBee API**: Cryptocurrency payment processing
 3. **Telegram Bot API**: User interface and notifications
@@ -142,6 +158,7 @@ DATABASE_URL=postgresql://validator_user:secure_password@db.server.com:5432/vali
 5. **File Storage**: Temporary storage for uploaded files and results
 
 ### Monitoring & Maintenance
+
 - Monitor webhook delivery success rates
 - Track payment confirmation times
 - Watch validation processing performance
@@ -151,31 +168,37 @@ DATABASE_URL=postgresql://validator_user:secure_password@db.server.com:5432/vali
 ## Troubleshooting Common Issues
 
 ### Bot Not Responding
+
 - Verify TELEGRAM_BOT_TOKEN is correct
 - Check if bot is added to channels properly
 - Ensure no conflicting bot instances
 
 ### Payment Issues
+
 - Verify BLOCKBEE_API_KEY is valid
 - Check webhook URL is accessible publicly
 - Confirm cryptocurrency is enabled in BlockBee dashboard
 
 ### Email Validation Problems
+
 - Test SMTP credentials separately
 - Check firewall settings for SMTP ports
 - Verify email provider app password settings
 
 ### Database Connection Issues
+
 - Test DATABASE_URL connection string format
 - Verify database server accessibility
 - Check user permissions for database operations
 
 ## Support Contacts
+
 - BlockBee Support: https://blockbee.io/support
 - Telegram Bot Support: https://core.telegram.org/bots/support
 - SMTP Provider Support: Contact your email provider
 
 ---
+
 **Last Updated**: August 3, 2025
 **System Status**: Production Ready
 **Documentation Version**: 1.0

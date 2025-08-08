@@ -783,7 +783,7 @@ Choose Email or Phone validation to get started!
 ✅ Advanced analytics & reports
 ✅ Priority support
 
-**Pricing:** $9.99/month (30 days)
+**Pricing:** $5.00/month (30 days)
 **Payment:** Cryptocurrency only
 **Trial:** 1,000 free validations
 

@@ -363,7 +363,7 @@ A: Our email validation achieves 95%+ accuracy using real-time SMTP checks. Phon
 A: 1,000 free validations (emails + phones combined) with full access to all features.
 
 **Q: How much does a subscription cost?**
-A: $9.99/month for unlimited validations, paid via cryptocurrency.
+A: $5.00/month for unlimited validations, paid via cryptocurrency.
 
 **Q: What file formats are supported?**
 A: CSV, Excel (.xlsx/.xls), and plain text files.

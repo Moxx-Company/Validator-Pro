@@ -122,7 +122,7 @@ class SubscriptionManager:
                 'message': (
                     "Your Email Validator Pro subscription has expired.\n\n"
                     "To continue validating unlimited emails, please renew your subscription.\n\n"
-                    "💎 Renew for just $9.99/month"
+                    "💎 Renew for just $5.00/month"
                 ),
                 'action': 'renew'
             }
@@ -132,7 +132,7 @@ class SubscriptionManager:
                 'message': (
                     f"Your subscription expires in {days_remaining} day{'s' if days_remaining > 1 else ''}.\n\n"
                     "Don't lose access to unlimited email validation!\n\n"
-                    "💎 Renew now for just $9.99/month"
+                    "💎 Renew now for just $5.00/month"
                 ),
                 'action': 'renew'
             }
@@ -142,7 +142,7 @@ class SubscriptionManager:
                 'message': (
                     f"Your subscription expires in {days_remaining} days.\n\n"
                     "Consider renewing soon to avoid interruption.\n\n"
-                    "💎 Renew for $9.99/month"
+                    "💎 Renew for $5.00/month"
                 ),
                 'action': 'remind'
             }

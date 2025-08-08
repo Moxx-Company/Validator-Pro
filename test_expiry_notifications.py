@@ -32,7 +32,7 @@ async def create_test_subscriptions():
         warning_subscription = Subscription(
             user_id=user.id,
             status='active',
-            amount_usd=9.99,
+            amount_usd=5.00,
             currency='USD',
             payment_currency_crypto='BTC',
             activated_at=datetime.utcnow() - timedelta(days=27),
@@ -44,7 +44,7 @@ async def create_test_subscriptions():
         final_subscription = Subscription(
             user_id=user.id,
             status='active',
-            amount_usd=9.99,
+            amount_usd=5.00,
             currency='USD',
             payment_currency_crypto='ETH',
             activated_at=datetime.utcnow() - timedelta(days=29),
@@ -56,7 +56,7 @@ async def create_test_subscriptions():
         expired_subscription = Subscription(
             user_id=user.id,
             status='active',
-            amount_usd=9.99,
+            amount_usd=5.00,
             currency='USD',
             payment_currency_crypto='USDT',
             activated_at=datetime.utcnow() - timedelta(days=31),

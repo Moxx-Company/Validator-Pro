@@ -152,14 +152,14 @@ class BlockBeeService:
         # Updated rates based on market analysis (August 2025)
         # These rates represent crypto amount per 1 USD
         approximate_rates = {
-            'btc': 0.000015,     # ~$66,667 per BTC (9.99 USD = 0.0001498 BTC)
-            'eth': 0.0030,       # ~$3,333 per ETH (9.99 USD = 0.0300 ETH)
-            'ltc': 0.150,        # ~$66.67 per LTC (9.99 USD = 1.4985 LTC)
-            'doge': 7.50,        # ~$0.133 per DOGE (9.99 USD = 74.93 DOGE)
-            'usdt_trc20': 1.0,   # ~$1.00 per USDT (9.99 USD = 9.99 USDT)
-            'usdt_erc20': 1.0,   # ~$1.00 per USDT (9.99 USD = 9.99 USDT)
-            'trx': 8.0,          # ~$0.125 per TRX (9.99 USD = 79.92 TRX)
-            'bnb': 0.017         # ~$588 per BNB (9.99 USD = 0.1699 BNB)
+            'btc': 0.000015,     # ~$66,667 per BTC (5.00 USD = 0.0001498 BTC)
+            'eth': 0.0030,       # ~$3,333 per ETH (5.00 USD = 0.0300 ETH)
+            'ltc': 0.150,        # ~$66.67 per LTC (5.00 USD = 1.4985 LTC)
+            'doge': 7.50,        # ~$0.133 per DOGE (5.00 USD = 74.93 DOGE)
+            'usdt_trc20': 1.0,   # ~$1.00 per USDT (5.00 USD = 5.00 USDT)
+            'usdt_erc20': 1.0,   # ~$1.00 per USDT (5.00 USD = 5.00 USDT)
+            'trx': 8.0,          # ~$0.125 per TRX (5.00 USD = 79.92 TRX)
+            'bnb': 0.017         # ~$588 per BNB (5.00 USD = 0.1699 BNB)
         }
         
         # Mathematical verification: rate * amount_usd should give correct crypto amount
