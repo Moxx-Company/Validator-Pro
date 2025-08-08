@@ -10,7 +10,7 @@ from database import SessionLocal
 from models import User, Subscription
 from keyboards import Keyboards
 from subscription_manager import SubscriptionManager
-from config import SUBSCRIPTION_INFO, SUBSCRIPTION_PRICE_USD
+from config import SUBSCRIPTION_INFO, SUBSCRIPTION_PRICE_USD, SUPPORT_EMAIL
 from utils import format_crypto_address
 
 logger = logging.getLogger(__name__)
@@ -206,6 +206,8 @@ Select your preferred payment method:
                     reply_markup=self.keyboards.back_to_menu()
                 )
                 return
+
+            logger.info(f"Payment address created: {payment_result['address']} for user {user.id}")
             
             # Check for existing pending subscription and cancel it first
             existing_pending = db.query(Subscription).filter(
@@ -536,7 +538,7 @@ Ready to make your first purchase?
 • Expired subscriptions: {expired_count}
 • Total spent: ${total_spent:.2f}
 
-Need help with billing? Contact @globalservicehelp
+Need help with billing? Contact @{SUPPORT_EMAIL} 
                 """
         
         query = update.callback_query

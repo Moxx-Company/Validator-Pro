@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import User
 from keyboards import Keyboards
-from config import WELCOME_MESSAGE, SUBSCRIPTION_INFO
+from config import WELCOME_MESSAGE, SUPPORT_EMAIL
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +154,7 @@ Welcome back, {user.full_name}!
     
     async def show_faq(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show frequently asked questions"""
-        faq_text = """
+        faq_text = f"""
 ❓ **Frequently Asked Questions**
 
 **Q: How accurate is the validation?**
@@ -179,15 +179,15 @@ A: We accept cryptocurrencies including Bitcoin, Ethereum, USDT, Litecoin, Dogec
 A: Yes! Our system supports all international formats and provides country, carrier, and timezone information.
 
 **Q: What if I need to validate more than 10MB?**
-A: Contact our support team @globalservicehelp for assistance with large datasets.
+A: Contact our support team @{SUPPORT_EMAIL} for assistance with large datasets.
 
 **Q: Do subscriptions auto-renew?**
 A: No. All subscriptions are one-time payments that expire after 30 days. No recurring charges.
 
 **Q: Can I get a refund?**
-A: Please contact @globalservicehelp for refund requests and billing issues.
+A: Please contact @{SUPPORT_EMAIL}  for refund requests and billing issues.
 
-Still have questions? Contact @globalservicehelp
+Still have questions? Contact @{SUPPORT_EMAIL} 
         """
         
         query = update.callback_query
@@ -199,11 +199,11 @@ Still have questions? Contact @globalservicehelp
     
     async def show_contact_support(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show contact support information"""
-        support_text = """
+        support_text = f"""
 💬 **Contact Support**
 
 **Direct Support:**
-- Telegram: @globalservicehelp
+- Telegram: @{SUPPORT_EMAIL} 
 - Response time: Within 24 hours
 
 **What we can help with:**
@@ -232,7 +232,7 @@ Found a bug? Please report it with:
 We appreciate your feedback and are here to help!
 
 **Support Hours:** 9 AM - 6 PM UTC, Monday - Friday
-**Emergency issues:** Contact anytime via @globalservicehelp
+**Emergency issues:** Contact anytime via @{SUPPORT_EMAIL} 
         """
         
         query = update.callback_query
@@ -276,7 +276,7 @@ Ready to validate your data!
     
     async def show_help_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show help menu"""
-        help_text = """
+        help_text = f"""
 ❓ **Help & Support**
 
 Welcome to Validator Pro! Here's how to get the most out of our service:
@@ -292,7 +292,7 @@ Welcome to Validator Pro! Here's how to get the most out of our service:
 - Browse FAQ for common questions  
 - Contact support for personalized help
 
-**Direct Support:** @globalservicehelp
+**Direct Support:** @{SUPPORT_EMAIL} 
 
 How can we help you today?
         """
@@ -306,7 +306,7 @@ How can we help you today?
     
     async def show_user_guide(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show user guide"""
-        guide_text = """
+        guide_text = f"""
 📖 **User Guide**
 
 **Email Validation:**
@@ -341,7 +341,7 @@ How can we help you today?
 - Check column headers in CSV/Excel files
 - Contact support for large datasets (>10MB)
 
-Need help? Contact @globalservicehelp
+Need help? Contact @{SUPPORT_EMAIL} 
         """
         
         query = update.callback_query
@@ -353,7 +353,7 @@ Need help? Contact @globalservicehelp
     
     async def show_faq(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show frequently asked questions"""
-        faq_text = """
+        faq_text = f"""
 ❓ **Frequently Asked Questions**
 
 **Q: How accurate is the validation?**
@@ -378,7 +378,7 @@ A: Yes, we support phone numbers from all countries with proper country detectio
 A: Email validation: 15-30 emails/second
 Phone validation: 50+ phones/second
 
-Still have questions? Contact our support team at @globalservicehelp!
+Still have questions? Contact our support team at @{SUPPORT_EMAIL} !
         """
         
         query = update.callback_query
@@ -390,7 +390,7 @@ Still have questions? Contact our support team at @globalservicehelp!
     
     async def show_contact_support(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show contact support information"""
-        support_text = """
+        support_text = f"""
 💬 **Contact Support**
 
 Our support team is here to help you succeed with Validator Pro.
@@ -408,7 +408,7 @@ Our support team is here to help you succeed with Validator Pro.
 - Billing questions: Within 6 hours
 
 **How to Reach Us:**
-Contact us directly at @globalservicehelp or send us a message in this chat describing your issue, and our team will respond promptly.
+Contact us directly at @{SUPPORT_EMAIL}  or send us a message in this chat describing your issue, and our team will respond promptly.
 
 **Include in Your Message:**
 - Description of the problem

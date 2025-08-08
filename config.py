@@ -40,6 +40,7 @@ SMTP_PASSWORD = os.getenv('SMTP_PASSWORD')  # Your app password
 SMTP_USE_TLS = os.getenv('SMTP_USE_TLS', 'true').lower() == 'true'
 SMTP_TEST_EMAIL = os.getenv('SMTP_TEST_EMAIL', 'test@validator.com')
 SMTP_HELO_DOMAIN = os.getenv('SMTP_HELO_DOMAIN', 'validator.com')
+SUPPORT_EMAIL = os.getenv('SUPPORT_EMAIL', 'globalservicehelp')
 
 # Check if SMTP credentials are configured
 SMTP_CONFIGURED = bool(SMTP_SERVER and SMTP_USERNAME and SMTP_PASSWORD)

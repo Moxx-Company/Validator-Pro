@@ -11,7 +11,7 @@ from database import SessionLocal
 from models import User, Subscription
 from telegram import Bot
 from telegram.error import TelegramError
-from config import TELEGRAM_BOT_TOKEN
+from config import TELEGRAM_BOT_TOKEN, SUPPORT_EMAIL
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ Your Validator Pro subscription will expire in **{days_remaining} days**.
 • Select your preferred cryptocurrency
 • Complete payment to extend for another 30 days
 
-Need help? Contact @globalservicehelp"""
+Need help? Contact @{SUPPORT_EMAIL}."""
 
             await self.bot.send_message(
                 chat_id=user.telegram_id,
