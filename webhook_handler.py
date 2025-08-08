@@ -116,14 +116,16 @@ def create_webhook_app():
                 payment_amount = float(data.get('price', 0))
                 expected_amount = float(subscription.amount_usd) if subscription.amount_usd else 0.0
                 
+                from config import TOLERANCE
+                tolerance = TOLERANCE if TOLERANCE else 2.00  #
                 # Only apply $3 tolerance when payment is less than expected
                 if payment_amount < expected_amount:
                     shortage = expected_amount - payment_amount
-                    if shortage > 3.0:
-                        logger.warning(f"Payment ${payment_amount} is ${shortage:.2f} less than expected ${expected_amount} (exceeds $3 tolerance)")
+                    if shortage > tolerance:
+                        logger.warning(f"Payment ${payment_amount} is ${shortage:.2f} less than expected ${expected_amount} (exceeds ${tolerance} tolerance)")
                         # Still accept the payment but log the warning
                     else:
-                        logger.info(f"Payment ${payment_amount} is ${shortage:.2f} less than expected ${expected_amount} (within $3 tolerance)")
+                        logger.info(f"Payment ${payment_amount} is ${shortage:.2f} less than expected ${expected_amount} (within ${tolerance} tolerance)")
                 elif payment_amount > expected_amount:
                     overage = payment_amount - expected_amount
                     logger.info(f"Payment ${payment_amount} is ${overage:.2f} more than expected ${expected_amount} (overpayment accepted)")
