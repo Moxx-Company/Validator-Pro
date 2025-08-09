@@ -1410,11 +1410,10 @@ When you're done, click "Start Validation" below.
     #         )
 
 
-from telegram.helpers import escape_html
+from html import escape as html_escape
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
-async def show_job_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session, page: int = 0):
-    """Show user's validation job history with pagination (HTML-safe)."""
+async def show_job_history(self, update, context, user, db, page: int = 0):
     try:
         jobs_per_page = 5
         offset = page * jobs_per_page
@@ -1447,9 +1446,9 @@ async def show_job_history(self, update: Update, context: ContextTypes.DEFAULT_T
                 'failed': '❌', 'pending': '⏳'
             }.get(job.status, '❓')
 
-            val_type = escape_html((job.validation_type or 'email').title())
-            filename = escape_html(job.filename or 'Manual Input')
-            date_str = escape_html(job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'Unknown')
+            val_type = html_escape((job.validation_type or 'email').title())
+            filename = html_escape(job.filename or 'Manual Input')
+            date_str = html_escape(job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'Unknown')
 
             history_text += f"{status_emoji} <b>Job #{job.id}</b> - {val_type}\n"
             history_text += f"📁 <code>{filename}</code>\n"
@@ -1460,7 +1459,6 @@ async def show_job_history(self, update: Update, context: ContextTypes.DEFAULT_T
                 history_text += f"📊 {total_count} items\n"
             history_text += f"📅 {date_str}\n\n"
 
-        # Buttons
         keyboard = []
         for job in jobs:
             status_emoji = {
@@ -1496,8 +1494,7 @@ async def show_job_history(self, update: Update, context: ContextTypes.DEFAULT_T
         )
 
 
-async def show_recent_jobs(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user: User, db: Session):
-    """Show recent validation jobs (HTML-safe)."""
+async def show_recent_jobs(self, update, context, user, db):
     try:
         jobs = (db.query(ValidationJob)
                   .filter(ValidationJob.user_id == user.id)
@@ -1524,9 +1521,9 @@ async def show_recent_jobs(self, update: Update, context: ContextTypes.DEFAULT_T
                 'failed': '❌', 'pending': '⏳'
             }.get(job.status, '❓')
 
-            val_type = escape_html((job.validation_type or 'email').title())
-            filename = escape_html(job.filename or 'Manual Input')
-            date_str = escape_html(job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'Unknown')
+            val_type = html_escape((job.validation_type or 'email').title())
+            filename = html_escape(job.filename or 'Manual Input')
+            date_str = html_escape(job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'Unknown')
 
             jobs_text += f"{status_emoji} <b>Job #{job.id}</b> - {val_type}\n"
             jobs_text += f"📁 <code>{filename}</code>\n"
