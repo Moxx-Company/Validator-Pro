@@ -185,7 +185,7 @@ How would you like to validate {item_name}?
             line_format = "• One email address per line"
         else:
             item_name = "phone numbers"
-            column_info = "• Must have 'phone' or 'phone_number' column or numbers in first column"
+            column_info = "• Must have 'phone' or 'phone\\_number' column or numbers in first column"
             line_format = "• One phone number per line (international format supported)"
             
         upload_text = f"""📁 File Upload
@@ -229,7 +229,7 @@ Select your file type and then send the file:"""
 
         if validation_type == 'phone':
             item_name = "phone numbers"
-            column_hint = "• Put numbers in the first column or a 'phone' / 'phone number' column"
+            column_hint = "• Put numbers in the first column or a 'phone' / 'phone\\_number' column"
         else:
             item_name = "email addresses"
             column_hint = "• Put emails in the first column or an 'email' column"
