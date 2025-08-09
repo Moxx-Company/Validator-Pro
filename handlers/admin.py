@@ -10,7 +10,6 @@ from database import get_db
 from models import User
 from config import ADMIN_CHAT_ID
 from keyboards import Keyboards
-from utils import escape_markdown
 
 logger = logging.getLogger(__name__)
 
