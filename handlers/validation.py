@@ -20,6 +20,7 @@ from file_processor import FileProcessor
 from utils import create_progress_bar, format_duration, format_file_size
 from config import MAX_FILE_SIZE_MB
 from progress_tracker import progress_tracker
+from html import escape as html_escape
 
 logger = logging.getLogger(__name__)
 
@@ -1410,155 +1411,152 @@ When you're done, click "Start Validation" below.
     #         )
 
 
-from html import escape as html_escape
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+    async def show_job_history(self, update, context, user, db, page: int = 0):
+        try:
+            jobs_per_page = 5
+            offset = page * jobs_per_page
 
-async def show_job_history(self, update, context, user, db, page: int = 0):
-    try:
-        jobs_per_page = 5
-        offset = page * jobs_per_page
+            jobs = (db.query(ValidationJob)
+                    .filter(ValidationJob.user_id == user.id)
+                    .order_by(ValidationJob.created_at.desc())
+                    .offset(offset).limit(jobs_per_page).all())
 
-        jobs = (db.query(ValidationJob)
-                  .filter(ValidationJob.user_id == user.id)
-                  .order_by(ValidationJob.created_at.desc())
-                  .offset(offset).limit(jobs_per_page).all())
+            total_jobs = db.query(ValidationJob).filter(ValidationJob.user_id == user.id).count()
+            total_pages = (total_jobs + jobs_per_page - 1) // jobs_per_page
 
-        total_jobs = db.query(ValidationJob).filter(ValidationJob.user_id == user.id).count()
-        total_pages = (total_jobs + jobs_per_page - 1) // jobs_per_page
+            if not jobs:
+                await update.callback_query.edit_message_text(
+                    "📋 <b>Job History</b>\n\nNo validation jobs found.\n\nStart your first validation to see history here!",
+                    reply_markup=self.keyboards.main_menu(),
+                    parse_mode='HTML'
+                )
+                return
 
-        if not jobs:
+            history_text = f"📋 <b>Job History</b> (Page {page + 1} of {max(1, total_pages)})\n\n"
+
+            for job in jobs:
+                results = db.query(ValidationResult).filter(ValidationResult.job_id == job.id).all()
+                valid_count = sum(1 for r in results if r.is_valid)
+                total_count = len(results)
+
+                status_emoji = {
+                    'completed': '✅', 'processing': '🔄',
+                    'failed': '❌', 'pending': '⏳'
+                }.get(job.status, '❓')
+
+                val_type = html_escape((job.validation_type or 'email').title())
+                filename = html_escape(job.filename or 'Manual Input')
+                date_str = html_escape(job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'Unknown')
+
+                history_text += f"{status_emoji} <b>Job #{job.id}</b> - {val_type}\n"
+                history_text += f"📁 <code>{filename}</code>\n"
+                if total_count > 0:
+                    pct = int(round((valid_count / total_count) * 100))
+                    history_text += f"📊 {valid_count}/{total_count} valid ({pct}%)\n"
+                else:
+                    history_text += f"📊 {total_count} items\n"
+                history_text += f"📅 {date_str}\n\n"
+
+            keyboard = []
+            for job in jobs:
+                status_emoji = {
+                    'completed': '✅', 'processing': '🔄',
+                    'failed': '❌', 'pending': '⏳'
+                }.get(job.status, '❓')
+                keyboard.append([InlineKeyboardButton(
+                    f"{status_emoji} Job #{job.id} - View Details",
+                    callback_data=f"details_{job.id}"
+                )])
+
+            nav_row = []
+            if page > 0:
+                nav_row.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"history_page_{page-1}"))
+            if page < total_pages - 1:
+                nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"history_page_{page+1}"))
+            if nav_row:
+                keyboard.append(nav_row)
+
+            keyboard.append([InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")])
+
             await update.callback_query.edit_message_text(
-                "📋 <b>Job History</b>\n\nNo validation jobs found.\n\nStart your first validation to see history here!",
-                reply_markup=self.keyboards.main_menu(),
+                history_text.strip(),
+                reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode='HTML'
             )
-            return
 
-        history_text = f"📋 <b>Job History</b> (Page {page + 1} of {max(1, total_pages)})\n\n"
-
-        for job in jobs:
-            results = db.query(ValidationResult).filter(ValidationResult.job_id == job.id).all()
-            valid_count = sum(1 for r in results if r.is_valid)
-            total_count = len(results)
-
-            status_emoji = {
-                'completed': '✅', 'processing': '🔄',
-                'failed': '❌', 'pending': '⏳'
-            }.get(job.status, '❓')
-
-            val_type = html_escape((job.validation_type or 'email').title())
-            filename = html_escape(job.filename or 'Manual Input')
-            date_str = html_escape(job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'Unknown')
-
-            history_text += f"{status_emoji} <b>Job #{job.id}</b> - {val_type}\n"
-            history_text += f"📁 <code>{filename}</code>\n"
-            if total_count > 0:
-                pct = int(round((valid_count / total_count) * 100))
-                history_text += f"📊 {valid_count}/{total_count} valid ({pct}%)\n"
-            else:
-                history_text += f"📊 {total_count} items\n"
-            history_text += f"📅 {date_str}\n\n"
-
-        keyboard = []
-        for job in jobs:
-            status_emoji = {
-                'completed': '✅', 'processing': '🔄',
-                'failed': '❌', 'pending': '⏳'
-            }.get(job.status, '❓')
-            keyboard.append([InlineKeyboardButton(
-                f"{status_emoji} Job #{job.id} - View Details",
-                callback_data=f"details_{job.id}"
-            )])
-
-        nav_row = []
-        if page > 0:
-            nav_row.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"history_page_{page-1}"))
-        if page < total_pages - 1:
-            nav_row.append(InlineKeyboardButton("Next ➡️", callback_data=f"history_page_{page+1}"))
-        if nav_row:
-            keyboard.append(nav_row)
-
-        keyboard.append([InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")])
-
-        await update.callback_query.edit_message_text(
-            history_text.strip(),
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='HTML'
-        )
-
-    except Exception as e:
-        logger.error(f"Error showing job history: {e}")
-        await update.callback_query.edit_message_text(
-            "❌ Error loading job history. Please try again.",
-            reply_markup=self.keyboards.main_menu()
-        )
-
-
-async def show_recent_jobs(self, update, context, user, db):
-    try:
-        jobs = (db.query(ValidationJob)
-                  .filter(ValidationJob.user_id == user.id)
-                  .order_by(ValidationJob.created_at.desc())
-                  .limit(5).all())
-
-        if not jobs:
+        except Exception as e:
+            logger.error(f"Error showing job history: {e}")
             await update.callback_query.edit_message_text(
-                "📋 <b>Recent Jobs</b>\n\nNo validation jobs found.\n\nStart your first validation to see jobs here!",
-                reply_markup=self.keyboards.main_menu(),
+                "❌ Error loading job history. Please try again.",
+                reply_markup=self.keyboards.main_menu()
+            )
+
+
+    async def show_recent_jobs(self, update, context, user, db):
+        try:
+            jobs = (db.query(ValidationJob)
+                    .filter(ValidationJob.user_id == user.id)
+                    .order_by(ValidationJob.created_at.desc())
+                    .limit(5).all())
+
+            if not jobs:
+                await update.callback_query.edit_message_text(
+                    "📋 <b>Recent Jobs</b>\n\nNo validation jobs found.\n\nStart your first validation to see jobs here!",
+                    reply_markup=self.keyboards.main_menu(),
+                    parse_mode='HTML'
+                )
+                return
+
+            jobs_text = "📋 <b>Recent Validation Jobs</b>\n\n"
+
+            for job in jobs:
+                results = db.query(ValidationResult).filter(ValidationResult.job_id == job.id).all()
+                valid_count = sum(1 for r in results if r.is_valid)
+                total_count = len(results)
+
+                status_emoji = {
+                    'completed': '✅', 'processing': '🔄',
+                    'failed': '❌', 'pending': '⏳'
+                }.get(job.status, '❓')
+
+                val_type = html_escape((job.validation_type or 'email').title())
+                filename = html_escape(job.filename or 'Manual Input')
+                date_str = html_escape(job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'Unknown')
+
+                jobs_text += f"{status_emoji} <b>Job #{job.id}</b> - {val_type}\n"
+                jobs_text += f"📁 <code>{filename}</code>\n"
+                if total_count > 0:
+                    pct = int(round((valid_count / total_count) * 100))
+                    jobs_text += f"📊 {valid_count}/{total_count} valid ({pct}%)\n"
+                else:
+                    jobs_text += f"📊 {total_count} items\n"
+                jobs_text += f"📅 {date_str}\n\n"
+
+            keyboard = []
+            for job in jobs:
+                status_emoji = {
+                    'completed': '✅', 'processing': '🔄',
+                    'failed': '❌', 'pending': '⏳'
+                }.get(job.status, '❓')
+                keyboard.append([InlineKeyboardButton(
+                    f"{status_emoji} Job #{job.id} - Details",
+                    callback_data=f"details_{job.id}"
+                )])
+
+            keyboard.extend([
+                [InlineKeyboardButton("📊 View All History", callback_data="job_history")],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
+            ])
+
+            await update.callback_query.edit_message_text(
+                jobs_text.strip(),
+                reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode='HTML'
             )
-            return
 
-        jobs_text = "📋 <b>Recent Validation Jobs</b>\n\n"
-
-        for job in jobs:
-            results = db.query(ValidationResult).filter(ValidationResult.job_id == job.id).all()
-            valid_count = sum(1 for r in results if r.is_valid)
-            total_count = len(results)
-
-            status_emoji = {
-                'completed': '✅', 'processing': '🔄',
-                'failed': '❌', 'pending': '⏳'
-            }.get(job.status, '❓')
-
-            val_type = html_escape((job.validation_type or 'email').title())
-            filename = html_escape(job.filename or 'Manual Input')
-            date_str = html_escape(job.created_at.strftime('%m/%d %H:%M') if job.created_at else 'Unknown')
-
-            jobs_text += f"{status_emoji} <b>Job #{job.id}</b> - {val_type}\n"
-            jobs_text += f"📁 <code>{filename}</code>\n"
-            if total_count > 0:
-                pct = int(round((valid_count / total_count) * 100))
-                jobs_text += f"📊 {valid_count}/{total_count} valid ({pct}%)\n"
-            else:
-                jobs_text += f"📊 {total_count} items\n"
-            jobs_text += f"📅 {date_str}\n\n"
-
-        keyboard = []
-        for job in jobs:
-            status_emoji = {
-                'completed': '✅', 'processing': '🔄',
-                'failed': '❌', 'pending': '⏳'
-            }.get(job.status, '❓')
-            keyboard.append([InlineKeyboardButton(
-                f"{status_emoji} Job #{job.id} - Details",
-                callback_data=f"details_{job.id}"
-            )])
-
-        keyboard.extend([
-            [InlineKeyboardButton("📊 View All History", callback_data="job_history")],
-            [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")]
-        ])
-
-        await update.callback_query.edit_message_text(
-            jobs_text.strip(),
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='HTML'
-        )
-
-    except Exception as e:
-        logger.error(f"Error showing recent jobs: {e}")
-        await update.callback_query.edit_message_text(
-            "❌ Error loading recent jobs. Please try again.",
-            reply_markup=self.keyboards.main_menu()
-        )
+        except Exception as e:
+            logger.error(f"Error showing recent jobs: {e}")
+            await update.callback_query.edit_message_text(
+                "❌ Error loading recent jobs. Please try again.",
+                reply_markup=self.keyboards.main_menu()
+            )
