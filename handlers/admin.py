@@ -11,7 +11,7 @@ from models import User
 from config import ADMIN_CHAT_ID
 from keyboards import Keyboards
 from html import escape as html_escape
-from telegram.error import Forbidden, RetryAfter, BadRequest  # if you want BadRequest
+from telegram.error import Forbidden, RetryAfter, BadRequest
 
 from database import SessionLocal
 
