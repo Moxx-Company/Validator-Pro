@@ -10,6 +10,11 @@ from database import get_db
 from models import User
 from config import ADMIN_CHAT_ID
 from keyboards import Keyboards
+from html import escape as html_escape
+from telegram.error import RetryAfter, Forbidden
+from telegram import Update
+
+from database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -166,63 +171,138 @@ Confirm to send this broadcast message?
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
-    
+
+
     async def send_broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Send broadcast message to all users"""
+        """Send broadcast message to all users (uses SessionLocal directly)."""
         query = update.callback_query
-        broadcast_message = context.user_data.get('broadcast_message')
-        
-        if not broadcast_message:
+        msg = (context.user_data or {}).get('broadcast_message')
+        if not msg:
             await query.edit_message_text("❌ No broadcast message found. Please try again.")
             return
-            
-        await query.edit_message_text("📢 **Sending broadcast...**\nPlease wait while we deliver your message to all users.")
-        
-        # Get all users from database
-        with get_db() as db:
+
+        await query.edit_message_text(
+            "📢 <b>Sending broadcast...</b>\nPlease wait while we deliver your message to all users.",
+            parse_mode='HTML'
+        )
+
+        success = failed = blocked = skipped = 0
+
+        # Pull users directly with SessionLocal (no get_db)
+        with SessionLocal() as db:
             users = db.query(User).all()
-            
-            success_count = 0
-            failed_count = 0
-            
-            for user in users:
+            total = len(users)
+
+            for u in users:
+                # Guard against missing/invalid chat IDs
+                try:
+                    chat_id = int(u.telegram_id)
+                except Exception:
+                    skipped += 1
+                    continue
+
                 try:
                     await query.bot.send_message(
-                        chat_id=int(user.telegram_id),
-                        text=f"📢 **Admin Broadcast**\n\n{broadcast_message}",
-                        parse_mode='Markdown'
+                        chat_id=chat_id,
+                        text=f"📢 <b>Admin Broadcast</b>\n\n{html_escape(msg)}",
+                        parse_mode='HTML',
+                        disable_web_page_preview=True,
                     )
-                    success_count += 1
-                    await asyncio.sleep(0.1)  # Rate limiting
+                    success += 1
+                    await asyncio.sleep(0.1)  # gentle rate limit
+                except RetryAfter as e:
+                    # Respect Telegram rate limit
+                    await asyncio.sleep(e.retry_after + 0.5)
+                    continue
+                except Forbidden:
+                    # User blocked bot / never started
+                    blocked += 1
+                    continue
                 except Exception as e:
-                    logger.error(f"Failed to send broadcast to user {user.telegram_id}: {e}")
-                    failed_count += 1
-        
-        # Clear broadcast data
+                    failed += 1
+                    # Optional: log error if you have a logger
+                    # logger.error(f"Broadcast to {chat_id} failed: {e}")
+                    continue
+
+        # Clear the pending message
         context.user_data.pop('broadcast_message', None)
-        
-        result_text = f"""
-✅ **Broadcast Complete**
 
-**Results:**
-- Messages sent: {success_count}
-- Failed deliveries: {failed_count}
-- Total users: {len(users)}
-
-**Message sent:**
-{broadcast_message}
-        """
-        
-        keyboard = [
-            [InlineKeyboardButton("⬅️ Back to Admin Panel", callback_data="admin_panel")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.edit_message_text(
-            result_text,
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
+        result = (
+            f"✅ <b>Broadcast Complete</b>\n\n"
+            f"<b>Results:</b>\n"
+            f"• Messages sent: {success}\n"
+            f"• Failed deliveries: {failed}\n"
+            f"• Blocked/forbidden: {blocked}\n"
+            f"• Skipped (no chat id): {skipped}\n"
+            f"• Total users: {total}\n\n"
+            f"<b>Message sent:</b>\n{html_escape(msg)}"
         )
+
+        await query.edit_message_text(
+            result,
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("⬅️ Back to Admin Panel", callback_data="admin_panel")]]
+            ),
+            parse_mode='HTML'
+        )
+
+    
+#     async def send_broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+#         """Send broadcast message to all users"""
+#         query = update.callback_query
+#         broadcast_message = context.user_data.get('broadcast_message')
+        
+#         if not broadcast_message:
+#             await query.edit_message_text("❌ No broadcast message found. Please try again.")
+#             return
+            
+#         await query.edit_message_text("📢 **Sending broadcast...**\nPlease wait while we deliver your message to all users.")
+        
+#         # Get all users from database
+#         with get_db() as db:
+#             users = db.query(User).all()
+            
+#             success_count = 0
+#             failed_count = 0
+            
+#             for user in users:
+#                 try:
+#                     await query.bot.send_message(
+#                         chat_id=int(user.telegram_id),
+#                         text=f"📢 **Admin Broadcast**\n\n{broadcast_message}",
+#                         parse_mode='Markdown'
+#                     )
+#                     success_count += 1
+#                     await asyncio.sleep(0.1)  # Rate limiting
+#                 except Exception as e:
+#                     logger.error(f"Failed to send broadcast to user {user.telegram_id}: {e}")
+#                     failed_count += 1
+        
+#         # Clear broadcast data
+#         context.user_data.pop('broadcast_message', None)
+        
+#         result_text = f"""
+# ✅ **Broadcast Complete**
+
+# **Results:**
+# - Messages sent: {success_count}
+# - Failed deliveries: {failed_count}
+# - Total users: {len(users)}
+
+# **Message sent:**
+# {broadcast_message}
+#         """
+        
+#         keyboard = [
+#             [InlineKeyboardButton("⬅️ Back to Admin Panel", callback_data="admin_panel")]
+#         ]
+#         reply_markup = InlineKeyboardMarkup(keyboard)
+        
+#         await query.edit_message_text(
+#             result_text,
+#             reply_markup=reply_markup,
+#             parse_mode='Markdown'
+#         )
     
     async def cancel_broadcast(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Cancel broadcast message"""
