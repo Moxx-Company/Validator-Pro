@@ -202,8 +202,11 @@ Select your file type and then send the file:"""
         )
     
     async def prompt_file_upload(self, update: Update, context: ContextTypes.DEFAULT_TYPE, file_type: str):
-        """Prompt user to upload specific file type"""
+        """Prompt user to upload the chosen file type, tailored to email/phone."""
         context.user_data['expected_file_type'] = file_type
+
+        # default to email if not set
+        validation_type = (context.user_data or {}).get('validation_type', 'email')
         
         file_types = {
             'csv': ('CSV', '.csv'),
@@ -212,16 +215,23 @@ Select your file type and then send the file:"""
         }
         
         type_name, extensions = file_types.get(file_type, ('File', 'supported'))
+
+        if validation_type == 'phone':
+            item_name = "phone numbers"
+            column_hint = "• Put numbers in the first column or a 'phone' / 'phone_number' column"
+        else:
+            item_name = "email addresses"
+            column_hint = "• Put emails in the first column or an 'email' column"
         
         prompt_text = f"""
 📤 **Upload {type_name} File**
 
-Please send me your {type_name.lower()} file with email addresses.
+Please send me your {type_name.lower()} file with {item_name}.
 
 **Requirements:**
 • Format: {extensions}
 • Max size: {MAX_FILE_SIZE_MB}MB
-• Emails should be in 'email' column or first column
+{column_hint}
 
 Just drag and drop your file or click the attachment button and send it to me.
         """
