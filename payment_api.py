@@ -18,7 +18,7 @@ from models import Subscription
 from datetime import datetime, timedelta
 from config import SUBSCRIPTION_DURATION_DAYS
 import uuid
-from models import Subscription
+from models import Subscription, User
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -664,26 +664,42 @@ def webhook():
 
             # 5) Telegram notification (MANDATORY when uid is present)
             try:
-                chat_id = uid or po.user_id
+                chat_id = None
+
+                if subscription:
+                    # subscription.user_id -> Users.id
+                    urow = db.query(User).get(int(subscription.user_id))
+                    if urow and urow.telegram_id:
+                        chat_id = str(urow.telegram_id)
+
+                # Fallbacks if you ever confirm without a Subscription
+                if not chat_id and payment_order:
+                    # If your PaymentOrder.user_id already stores Telegram chat id, use it
+                    chat_id = str(payment_order.user_id) if payment_order.user_id else None
+                    # Or, if you store a mapping elsewhere, resolve it here.
+
                 if chat_id:
-                    # choose an expiry to show
                     expires = subscription.expires_at if subscription else None
-                    if not expires and payment_user and payment_user.subscription_expires_at:
-                        expires = payment_user.subscription_expires_at
                     if not expires:
-                        expires = datetime.utcnow() + timedelta(days=30)  # fallback display only
+                        # optional: mirror from PaymentUser if you use it
+                        pu = db.query(PaymentUser).filter(PaymentUser.user_id == chat_id).first()
+                        if pu and pu.subscription_expires_at:
+                            expires = pu.subscription_expires_at
+                    if not expires:
+                        expires = datetime.utcnow() + timedelta(days=30)  # display fallback
 
                     ok = send_telegram_notification(
-                        user_id=str(chat_id),
+                        user_id=chat_id,                # <- real Telegram chat id
                         order_id=str(po.order_id),
                         subscription_expires=expires.isoformat()
                     )
                     if ok:
-                        logger.info(f"Telegram notification sent to user {chat_id}")
+                        logger.info(f"Telegram notification sent to chat {chat_id}")
                     else:
-                        logger.warning(f"Failed to send Telegram notification to user {chat_id}")
+                        logger.warning(f"Telegram notification failed for chat {chat_id}")
                 else:
-                    logger.warning("No uid/user_id available; cannot send Telegram notification")
+                    logger.warning("No Telegram chat_id resolved (Users.telegram_id missing); skipping notify")
+
             except Exception as notify_err:
                 logger.warning(f"Telegram notify error: {notify_err}")
 
