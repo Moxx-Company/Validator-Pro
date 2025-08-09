@@ -494,29 +494,29 @@ def webhook():
 
     logger.info("Verified webhook received")
 
-    # 3) Parse payloads (BlockBee may send JSON or form; your GET params are still in the URL)
+    # --- parse
     args = request.args or {}
     body = request.get_json(silent=True) or request.form.to_dict() or {}
     data = {**args, **body}
     logger.info(f"args={dict(args)} body={body}")
 
-    raw_order_id = data.get("order_id")
-    address_in   = data.get("address_in")
-    txid         = data.get("txid") or data.get("txid_in")
-    status       = data.get("status")
-    coin_param   = (args.get("coin") or data.get("coin") or "").upper()
+    raw_order_id = data.get('order_id')
+    address_in   = data.get('address_in')
+    txid         = data.get('txid') or data.get('txid_in')
+    status       = data.get('status')
+    coin_param   = (data.get('coin') or '').upper()
 
     try:
-        confirmations = int(data.get("confirmations", 0) or 0)
+        confirmations = int(data.get('confirmations', 0) or 0)
     except Exception:
         confirmations = 0
     try:
-        amount_coin = float(data.get("value_coin", 0) or 0)
+        amount_coin = float(data.get('value_coin', 0) or 0)
     except Exception:
         amount_coin = 0.0
 
     if not raw_order_id and not address_in:
-        logger.error("No order_id or address_in on webhook")
+        logger.error("No order_id or address_in found in webhook")
         return "ok", 200
 
     db = get_db()
@@ -524,40 +524,40 @@ def webhook():
         subscription = None
         payment_order = None
 
-        # Prefer Subscription flow when order_id is numeric (you put subscription.id in callback)
+        # Prefer Subscription when order_id is numeric (subscription.id you put in the callback)
         if raw_order_id and str(raw_order_id).isdigit():
             subscription = db.query(Subscription).get(int(raw_order_id))
+            if subscription:
+                logger.info(f"Matched Subscription id={subscription.id}")
 
         # Otherwise try PaymentOrder by string order_id (e.g., 'order_abcd...')
         if not subscription and raw_order_id:
-            payment_order = (
-                db.query(PaymentOrder)
-                .filter(PaymentOrder.order_id == str(raw_order_id))
-                .first()
-            )
+            payment_order = db.query(PaymentOrder).filter(
+                PaymentOrder.order_id == str(raw_order_id)
+            ).first()
+            if payment_order:
+                logger.info(f"Matched PaymentOrder order_id={payment_order.order_id}")
 
-        # Fallback by address, if needed
+        # Fallback by address if still nothing
         if not subscription and not payment_order and address_in:
-            subscription = (
-                db.query(Subscription)
-                .filter(Subscription.payment_address == address_in)
-                .order_by(Subscription.created_at.desc())
-                .first()
-            )
-            if not subscription:
-                payment_order = (
-                    db.query(PaymentOrder)
-                    .filter(PaymentOrder.payment_address == address_in)
-                    .order_by(PaymentOrder.created_at.desc())
-                    .first()
-                )
+            subscription = db.query(Subscription).filter(
+                Subscription.payment_address == address_in
+            ).order_by(Subscription.created_at.desc()).first()
+            if subscription:
+                logger.info(f"Matched Subscription by address {address_in}")
+            else:
+                payment_order = db.query(PaymentOrder).filter(
+                    PaymentOrder.payment_address == address_in
+                ).order_by(PaymentOrder.created_at.desc()).first()
+                if payment_order:
+                    logger.info(f"Matched PaymentOrder by address {address_in}")
 
         if not subscription and not payment_order:
-            logger.error(f"No matching Subscription or PaymentOrder for order_id={raw_order_id} address_in={address_in}")
+            logger.error(f"No match for order_id={raw_order_id}, address_in={address_in}")
             db.commit()
             return "ok", 200
 
-        # Always log PaymentOrder webhooks to your PaymentLog if present
+        # Log to PaymentLog only if a PaymentOrder exists
         if payment_order:
             db.add(PaymentLog(
                 order_id=payment_order.order_id,
@@ -568,21 +568,18 @@ def webhook():
                 webhook_data=str({"args": dict(args), "body": body}),
             ))
 
-        # Confirmation rule:
         is_confirmed = (
             (status == "confirmed")
             or (payment_order and confirmations >= getattr(payment_order, "confirmations_required", 1))
-            or (not payment_order and confirmations >= 1)  # for bare Subscription flow
+            or (not payment_order and confirmations >= 1)  # bare Subscription flow
         )
 
         if is_confirmed:
-            # Update PaymentOrder if present
             if payment_order and payment_order.status != "confirmed":
                 payment_order.status = "confirmed"
                 payment_order.confirmations_received = confirmations
                 payment_order.confirmed_at = datetime.utcnow()
 
-            # Activate Subscription (preferred)
             if subscription and subscription.status != "active":
                 subscription.transaction_hash = txid
                 subscription.status = "active"
@@ -593,58 +590,35 @@ def webhook():
                 if not subscription.payment_amount_crypto and amount_coin:
                     subscription.payment_amount_crypto = amount_coin
 
-            # Optional: update your PaymentUser account-level expiry when coming from REST flow
-            if payment_order:
-                pu = db.query(PaymentUser).filter(PaymentUser.user_id == payment_order.user_id).first()
-                if pu:
-                    now = datetime.utcnow()
-                    base = pu.subscription_expires_at if pu.subscription_expires_at and pu.subscription_expires_at > now else now
-                    pu.subscription_expires_at = base + timedelta(days=SUBSCRIPTION_DURATION_DAYS)
-                    pu.updated_at = now
-
+            # commit first, then notify
             db.commit()
 
-            # Send Telegram notification, try uid from callback first, else PaymentOrder.user_id
+            # Telegram notify (optional)
             try:
-                chat_id = args.get("uid")
-                if not chat_id and payment_order:
-                    chat_id = payment_order.user_id  # your PaymentUser.user_id is the external Telegram chat id
-
-                if chat_id:
-                    # pick an expiry to show the user
-                    expires = subscription.expires_at if subscription else None
-                    if not expires and payment_order:
-                        pu = db.query(PaymentUser).filter(PaymentUser.user_id == str(chat_id)).first()
-                        if pu and pu.subscription_expires_at:
-                            expires = pu.subscription_expires_at
-
-                    if expires:
-                        ok = send_telegram_notification(
-                            user_id=str(chat_id),
-                            order_id=str(raw_order_id),
-                            subscription_expires=expires.isoformat()
-                        )
-                        if ok:
-                            logger.info(f"Telegram notification sent to {chat_id}")
-                        else:
-                            logger.warning(f"Telegram notification failed for {chat_id}")
+                chat_id = args.get("uid") or (payment_order.user_id if payment_order else None)
+                if chat_id and subscription and subscription.expires_at:
+                    send_telegram_notification(
+                        user_id=str(chat_id),
+                        order_id=str(raw_order_id),
+                        subscription_expires=subscription.expires_at.isoformat()
+                    )
             except Exception as notify_err:
-                logger.warning(f"Telegram notify error, {notify_err}")
-            
+                logger.warning(f"Telegram notify error: {notify_err}")
+
             return "ok", 200
 
-        # Not confirmed yet—track confirmations if you want
+        # not yet confirmed
         if payment_order:
             payment_order.confirmations_received = confirmations
         db.commit()
         return "ok", 200
-
     except Exception as e:
         logger.error(f"Webhook processing error: {e}")
         db.rollback()
         return "ok", 200
     finally:
         db.close()
+
 
 
 @app.route('/payment/<order_id>/status', methods=['GET'])
