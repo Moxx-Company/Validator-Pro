@@ -278,206 +278,374 @@ def create_payment():
         logger.error(f"Error creating payment: {e}")
         return jsonify({'error': str(e)}), 500
 
+# @app.route('/webhook', methods=['POST'])
+# def webhook():
+#     """
+#     BlockBee webhook endpoint
+#     Processes payment confirmations and activates subscriptions
+#     """
+#     logger.info(f"Webhook received")
+
+#     # Verify BlockBee signature
+#     # This will raise an error if the signature is invalid
+#     # if not verify_blockbee_signature(request):
+#     #     logger.error("Invalid BlockBee signature")
+#     #     return "Invalid signature", 401
+    
+#     logger.info("Verified webhook received")
+    
+#     db = None
+#     try:
+#         # Get webhook data
+#         webhook_data = request.get_json() or {}
+#         args = request.args or {}
+        
+#         # Also check query parameters (BlockBee sometimes sends data this way)
+#         if not webhook_data:
+#             webhook_data = dict(request.args)
+        
+#         logger.info(f"Webhook received: {webhook_data}")
+        
+#         # Extract important fields
+#         order_id = webhook_data.get('order_id')
+#         address_in = webhook_data.get('address_in')
+#         txid = webhook_data.get('txid_in', webhook_data.get('txid'))
+#         try:
+#             confirmations = int(webhook_data.get('confirmations', 0))
+#         except (ValueError, TypeError):
+#             confirmations = 0
+        
+#         status = webhook_data.get('status')
+#         try:
+#             amount = float(webhook_data.get('value_coin', 0))
+#         except (ValueError, TypeError):
+#             amount = 0.0
+        
+#         if not order_id and not address_in:
+#             logger.error("No order_id or address_in found in webhook")
+#             return "ok", 200  # Still return ok to prevent retries
+        
+#         db = get_db()
+        
+#         # Find payment order by order_id or address
+#         payment_order = None
+#         if order_id:
+#             payment_order = db.query(PaymentOrder).filter(PaymentOrder.order_id == order_id).first()
+#         elif address_in:
+#             payment_order = db.query(PaymentOrder).filter(PaymentOrder.payment_address == address_in).first()
+        
+#         if not payment_order:
+#             logger.error(f"Payment order not found for order_id: {order_id}, address: {address_in}")
+#             return "ok", 200
+        
+#         # Log the payment webhook
+#         payment_log = PaymentLog(
+#             order_id=payment_order.order_id,
+#             txid=txid or 'unknown',
+#             amount=amount,
+#             confirmations=confirmations,
+#             status=status or 'unknown',
+#             webhook_data=str(webhook_data)
+#         )
+#         db.add(payment_log)
+        
+#         # Check if payment is confirmed
+#         if status == 'confirmed' or (confirmations >= payment_order.confirmations_required):
+            
+#             # Prevent duplicate processing
+#             if payment_order.status == 'confirmed':
+#                 logger.info(f"Order {payment_order.order_id} already confirmed, skipping")
+#                 db.commit()
+#                 return "ok", 200
+            
+#             logger.info(f"Payment confirmed for order {payment_order.order_id}")
+            
+#             # Update payment order status
+#             if hasattr(payment_order, 'status'):
+#                 payment_order.status = 'confirmed'
+#             if hasattr(payment_order, 'confirmations_received'):
+#                 payment_order.confirmations_received = confirmations
+#             if hasattr(payment_order, 'confirmed_at'):
+#                 payment_order.confirmed_at = datetime.utcnow()
+            
+#             # Activate 30-day subscription for user
+#             user = db.query(PaymentUser).filter(PaymentUser.user_id == payment_order.user_id).first()
+#             if user:
+#                 # Extend subscription by 30 days from now or from current expiry
+#                 current_expiry = getattr(user, 'subscription_expires_at', None)
+#                 if current_expiry and current_expiry > datetime.utcnow():
+#                     # Extend from current expiry
+#                     new_expiry = current_expiry + timedelta(days=30)
+#                 else:
+#                     # Start from now
+#                     new_expiry = datetime.utcnow() + timedelta(days=30)
+                
+#                 if hasattr(user, 'subscription_expires_at'):
+#                     user.subscription_expires_at = new_expiry
+#                 if hasattr(user, 'updated_at'):
+#                     user.updated_at = datetime.utcnow()
+                
+#                 logger.info(f"Activated 30-day subscription for user {getattr(user, 'user_id', 'unknown')} until {new_expiry}")
+
+#                 # SUBSCRIPTION ACTIVATION HERE
+
+#                 # Look for a pending subscription for this order (or payment_address)
+#                 sub = (
+#                     db.query(Subscription)
+#                     .filter(
+#                         Subscription.user_id == payment_order.user_id,
+#                         Subscription.payment_address == payment_order.payment_address,
+#                         Subscription.status == 'pending'
+#                     )
+#                     .first()
+#                 )
+
+#                 if sub:
+#                     logger.info(f"Found pending subscription (id={sub.id}), activating now")
+#                     # Found the pending row—activate it
+#                     sub.status = 'active'
+#                     sub.activated_at = datetime.utcnow()
+#                     sub.expires_at = sub.activated_at + timedelta(days=SUBSCRIPTION_DURATION_DAYS)
+#                     logger.info(f"Subscription id={sub.id} activated until {sub.expires_at!s}")
+
+#                 else:
+#                     # No pending sub—for safety, fall back to extending an existing active one
+#                     sub = (
+#                         db.query(Subscription)
+#                         .filter(
+#                             Subscription.user_id == payment_order.user_id,
+#                             Subscription.status == 'active',
+#                             Subscription.expires_at > datetime.utcnow()
+#                         )
+#                         .first()
+#                     )
+#                     if sub:
+#                         # Extend current active subscription
+#                         old_expiry = sub.expires_at
+#                         sub.expires_at = sub.expires_at + timedelta(days=SUBSCRIPTION_DURATION_DAYS)
+#                         logger.info(f"Extended active subscription id={sub.id} from {old_expiry!s} to {sub.expires_at!s}")
+#                     else:
+#                         # No sub at all—create a new one
+#                         logger.info(f"No existing subscription found, creating new for user {payment_order.user_id}")
+#                         sub = Subscription(
+#                             user_id=payment_order.user_id,
+#                             status='active',
+#                             amount_usd=payment_order.amount_fiat,
+#                             currency=payment_order.crypto_type,
+#                             payment_address=payment_order.payment_address,
+#                             payment_amount_crypto=amount,
+#                             payment_currency_crypto=payment_order.crypto_type,
+#                             transaction_hash=txid,
+#                             activated_at=datetime.utcnow(),
+#                             expires_at=datetime.utcnow() + timedelta(days=SUBSCRIPTION_DURATION_DAYS)
+#                         )
+#                         db.add(sub)
+#                         logger.info(f"Created and activated new subscription id={sub.id} until {sub.expires_at!s}")
+                
+#                 # Send Telegram notification to user
+#                 try:
+#                     notification_sent = send_telegram_notification(
+#                         user_id=getattr(user, 'user_id', ''),
+#                         order_id=getattr(payment_order, 'order_id', ''),
+#                         subscription_expires=new_expiry.isoformat()
+#                     )
+#                     if notification_sent:
+#                         logger.info(f"Telegram notification sent to user {user.user_id}")
+#                     else:
+#                         logger.warning(f"Failed to send Telegram notification to user {user.user_id}")
+#                 except Exception as notify_error:
+#                     logger.error(f"Error sending notification to user {user.user_id}: {notify_error}")
+            
+#             db.commit()
+#             logger.info(f"Successfully processed payment confirmation for order {payment_order.order_id}")
+            
+#         else:
+#             logger.info(f"Payment not yet confirmed: {confirmations}/{getattr(payment_order, 'confirmations_required', 1)} confirmations")
+#             if hasattr(payment_order, 'confirmations_received'):
+#                 payment_order.confirmations_received = confirmations
+#             db.commit()
+        
+#         return "ok", 200
+        
+#     except (SQLAlchemyError, DatabaseError) as db_e:
+#         logger.error(f"Database error in webhook processing: {db_e}")
+#         if db:
+#             db.rollback()
+#         return "ok", 200
+#     except Exception as e:
+#         logger.error(f"Webhook processing error: {e}")
+#         # Still return ok to prevent endless retries
+#         return "ok", 200
+#     finally:
+#         if db:
+#             db.close()
+
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    """
-    BlockBee webhook endpoint
-    Processes payment confirmations and activates subscriptions
-    """
-    logger.info(f"Webhook received")
+    logger.info("Webhook received")
 
-    # Verify BlockBee signature
-    # This will raise an error if the signature is invalid
-    # if not verify_blockbee_signature(request):
+    # 2) Read raw body FIRST (for signature). cache=True keeps it available for get_json()
+    # raw = request.get_data(cache=True)
+
+    # if not verify_blockbee_signature(raw):
     #     logger.error("Invalid BlockBee signature")
     #     return "Invalid signature", 401
-    
+
     logger.info("Verified webhook received")
-    
-    db = None
+
+    # 3) Parse payloads (BlockBee may send JSON or form; your GET params are still in the URL)
+    args = request.args or {}
+    body = request.get_json(silent=True) or request.form.to_dict() or {}
+    data = {**args, **body}
+    logger.info(f"args={dict(args)} body={body}")
+
+    raw_order_id = data.get("order_id")
+    address_in   = data.get("address_in")
+    txid         = data.get("txid") or data.get("txid_in")
+    status       = data.get("status")
+    coin_param   = (args.get("coin") or data.get("coin") or "").upper()
+
     try:
-        # Get webhook data
-        webhook_data = request.get_json() or {}
-        
-        # Also check query parameters (BlockBee sometimes sends data this way)
-        if not webhook_data:
-            webhook_data = dict(request.args)
-        
-        logger.info(f"Webhook received: {webhook_data}")
-        
-        # Extract important fields
-        order_id = webhook_data.get('order_id')
-        address_in = webhook_data.get('address_in')
-        txid = webhook_data.get('txid_in', webhook_data.get('txid'))
-        try:
-            confirmations = int(webhook_data.get('confirmations', 0))
-        except (ValueError, TypeError):
-            confirmations = 0
-        
-        status = webhook_data.get('status')
-        try:
-            amount = float(webhook_data.get('value_coin', 0))
-        except (ValueError, TypeError):
-            amount = 0.0
-        
-        if not order_id and not address_in:
-            logger.error("No order_id or address_in found in webhook")
-            return "ok", 200  # Still return ok to prevent retries
-        
-        db = get_db()
-        
-        # Find payment order by order_id or address
+        confirmations = int(data.get("confirmations", 0) or 0)
+    except Exception:
+        confirmations = 0
+    try:
+        amount_coin = float(data.get("value_coin", 0) or 0)
+    except Exception:
+        amount_coin = 0.0
+
+    if not raw_order_id and not address_in:
+        logger.error("No order_id or address_in on webhook")
+        return "ok", 200
+
+    db = get_db()
+    try:
+        subscription = None
         payment_order = None
-        if order_id:
-            payment_order = db.query(PaymentOrder).filter(PaymentOrder.order_id == order_id).first()
-        elif address_in:
-            payment_order = db.query(PaymentOrder).filter(PaymentOrder.payment_address == address_in).first()
-        
-        if not payment_order:
-            logger.error(f"Payment order not found for order_id: {order_id}, address: {address_in}")
-            return "ok", 200
-        
-        # Log the payment webhook
-        payment_log = PaymentLog(
-            order_id=payment_order.order_id,
-            txid=txid or 'unknown',
-            amount=amount,
-            confirmations=confirmations,
-            status=status or 'unknown',
-            webhook_data=str(webhook_data)
-        )
-        db.add(payment_log)
-        
-        # Check if payment is confirmed
-        if status == 'confirmed' or (confirmations >= payment_order.confirmations_required):
-            
-            # Prevent duplicate processing
-            if payment_order.status == 'confirmed':
-                logger.info(f"Order {payment_order.order_id} already confirmed, skipping")
-                db.commit()
-                return "ok", 200
-            
-            logger.info(f"Payment confirmed for order {payment_order.order_id}")
-            
-            # Update payment order status
-            if hasattr(payment_order, 'status'):
-                payment_order.status = 'confirmed'
-            if hasattr(payment_order, 'confirmations_received'):
-                payment_order.confirmations_received = confirmations
-            if hasattr(payment_order, 'confirmed_at'):
-                payment_order.confirmed_at = datetime.utcnow()
-            
-            # Activate 30-day subscription for user
-            user = db.query(PaymentUser).filter(PaymentUser.user_id == payment_order.user_id).first()
-            if user:
-                # Extend subscription by 30 days from now or from current expiry
-                current_expiry = getattr(user, 'subscription_expires_at', None)
-                if current_expiry and current_expiry > datetime.utcnow():
-                    # Extend from current expiry
-                    new_expiry = current_expiry + timedelta(days=30)
-                else:
-                    # Start from now
-                    new_expiry = datetime.utcnow() + timedelta(days=30)
-                
-                if hasattr(user, 'subscription_expires_at'):
-                    user.subscription_expires_at = new_expiry
-                if hasattr(user, 'updated_at'):
-                    user.updated_at = datetime.utcnow()
-                
-                logger.info(f"Activated 30-day subscription for user {getattr(user, 'user_id', 'unknown')} until {new_expiry}")
 
-                # SUBSCRIPTION ACTIVATION HERE
+        # Prefer Subscription flow when order_id is numeric (you put subscription.id in callback)
+        if raw_order_id and str(raw_order_id).isdigit():
+            subscription = db.query(Subscription).get(int(raw_order_id))
 
-                # Look for a pending subscription for this order (or payment_address)
-                sub = (
-                    db.query(Subscription)
-                    .filter(
-                        Subscription.user_id == payment_order.user_id,
-                        Subscription.payment_address == payment_order.payment_address,
-                        Subscription.status == 'pending'
-                    )
+        # Otherwise try PaymentOrder by string order_id (e.g., 'order_abcd...')
+        if not subscription and raw_order_id:
+            payment_order = (
+                db.query(PaymentOrder)
+                .filter(PaymentOrder.order_id == str(raw_order_id))
+                .first()
+            )
+
+        # Fallback by address, if needed
+        if not subscription and not payment_order and address_in:
+            subscription = (
+                db.query(Subscription)
+                .filter(Subscription.payment_address == address_in)
+                .order_by(Subscription.created_at.desc())
+                .first()
+            )
+            if not subscription:
+                payment_order = (
+                    db.query(PaymentOrder)
+                    .filter(PaymentOrder.payment_address == address_in)
+                    .order_by(PaymentOrder.created_at.desc())
                     .first()
                 )
 
-                if sub:
-                    logger.info(f"Found pending subscription (id={sub.id}), activating now")
-                    # Found the pending row—activate it
-                    sub.status = 'active'
-                    sub.activated_at = datetime.utcnow()
-                    sub.expires_at = sub.activated_at + timedelta(days=SUBSCRIPTION_DURATION_DAYS)
-                    logger.info(f"Subscription id={sub.id} activated until {sub.expires_at!s}")
+        if not subscription and not payment_order:
+            logger.error(f"No matching Subscription or PaymentOrder for order_id={raw_order_id} address_in={address_in}")
+            db.commit()
+            return "ok", 200
 
-                else:
-                    # No pending sub—for safety, fall back to extending an existing active one
-                    sub = (
-                        db.query(Subscription)
-                        .filter(
-                            Subscription.user_id == payment_order.user_id,
-                            Subscription.status == 'active',
-                            Subscription.expires_at > datetime.utcnow()
-                        )
-                        .first()
-                    )
-                    if sub:
-                        # Extend current active subscription
-                        old_expiry = sub.expires_at
-                        sub.expires_at = sub.expires_at + timedelta(days=SUBSCRIPTION_DURATION_DAYS)
-                        logger.info(f"Extended active subscription id={sub.id} from {old_expiry!s} to {sub.expires_at!s}")
-                    else:
-                        # No sub at all—create a new one
-                        logger.info(f"No existing subscription found, creating new for user {payment_order.user_id}")
-                        sub = Subscription(
-                            user_id=payment_order.user_id,
-                            status='active',
-                            amount_usd=payment_order.amount_fiat,
-                            currency=payment_order.crypto_type,
-                            payment_address=payment_order.payment_address,
-                            payment_amount_crypto=amount,
-                            payment_currency_crypto=payment_order.crypto_type,
-                            transaction_hash=txid,
-                            activated_at=datetime.utcnow(),
-                            expires_at=datetime.utcnow() + timedelta(days=SUBSCRIPTION_DURATION_DAYS)
-                        )
-                        db.add(sub)
-                        logger.info(f"Created and activated new subscription id={sub.id} until {sub.expires_at!s}")
-                
-                # Send Telegram notification to user
-                try:
-                    notification_sent = send_telegram_notification(
-                        user_id=getattr(user, 'user_id', ''),
-                        order_id=getattr(payment_order, 'order_id', ''),
-                        subscription_expires=new_expiry.isoformat()
-                    )
-                    if notification_sent:
-                        logger.info(f"Telegram notification sent to user {user.user_id}")
-                    else:
-                        logger.warning(f"Failed to send Telegram notification to user {user.user_id}")
-                except Exception as notify_error:
-                    logger.error(f"Error sending notification to user {user.user_id}: {notify_error}")
-            
-            db.commit()
-            logger.info(f"Successfully processed payment confirmation for order {payment_order.order_id}")
-            
-        else:
-            logger.info(f"Payment not yet confirmed: {confirmations}/{getattr(payment_order, 'confirmations_required', 1)} confirmations")
-            if hasattr(payment_order, 'confirmations_received'):
+        # Always log PaymentOrder webhooks to your PaymentLog if present
+        if payment_order:
+            db.add(PaymentLog(
+                order_id=payment_order.order_id,
+                txid=txid or "unknown",
+                amount=amount_coin,
+                confirmations=confirmations,
+                status=status or "unknown",
+                webhook_data=str({"args": dict(args), "body": body}),
+            ))
+
+        # Confirmation rule:
+        is_confirmed = (
+            (status == "confirmed")
+            or (payment_order and confirmations >= getattr(payment_order, "confirmations_required", 1))
+            or (not payment_order and confirmations >= 1)  # for bare Subscription flow
+        )
+
+        if is_confirmed:
+            # Update PaymentOrder if present
+            if payment_order and payment_order.status != "confirmed":
+                payment_order.status = "confirmed"
                 payment_order.confirmations_received = confirmations
+                payment_order.confirmed_at = datetime.utcnow()
+
+            # Activate Subscription (preferred)
+            if subscription and subscription.status != "active":
+                subscription.transaction_hash = txid
+                subscription.status = "active"
+                subscription.activated_at = datetime.utcnow()
+                subscription.expires_at = subscription.activated_at + timedelta(days=SUBSCRIPTION_DURATION_DAYS)
+                if not subscription.payment_currency_crypto and coin_param:
+                    subscription.payment_currency_crypto = coin_param
+                if not subscription.payment_amount_crypto and amount_coin:
+                    subscription.payment_amount_crypto = amount_coin
+
+            # Optional: update your PaymentUser account-level expiry when coming from REST flow
+            if payment_order:
+                pu = db.query(PaymentUser).filter(PaymentUser.user_id == payment_order.user_id).first()
+                if pu:
+                    now = datetime.utcnow()
+                    base = pu.subscription_expires_at if pu.subscription_expires_at and pu.subscription_expires_at > now else now
+                    pu.subscription_expires_at = base + timedelta(days=SUBSCRIPTION_DURATION_DAYS)
+                    pu.updated_at = now
+
             db.commit()
-        
+
+            # Send Telegram notification, try uid from callback first, else PaymentOrder.user_id
+            try:
+                chat_id = args.get("uid")
+                if not chat_id and payment_order:
+                    chat_id = payment_order.user_id  # your PaymentUser.user_id is the external Telegram chat id
+
+                if chat_id:
+                    # pick an expiry to show the user
+                    expires = subscription.expires_at if subscription else None
+                    if not expires and payment_order:
+                        pu = db.query(PaymentUser).filter(PaymentUser.user_id == str(chat_id)).first()
+                        if pu and pu.subscription_expires_at:
+                            expires = pu.subscription_expires_at
+
+                    if expires:
+                        ok = send_telegram_notification(
+                            user_id=str(chat_id),
+                            order_id=str(raw_order_id),
+                            subscription_expires=expires.isoformat()
+                        )
+                        if ok:
+                            logger.info(f"Telegram notification sent to {chat_id}")
+                        else:
+                            logger.warning(f"Telegram notification failed for {chat_id}")
+            except Exception as notify_err:
+                logger.warning(f"Telegram notify error, {notify_err}")
+            
+            return "ok", 200
+
+        # Not confirmed yet—track confirmations if you want
+        if payment_order:
+            payment_order.confirmations_received = confirmations
+        db.commit()
         return "ok", 200
-        
-    except (SQLAlchemyError, DatabaseError) as db_e:
-        logger.error(f"Database error in webhook processing: {db_e}")
-        if db:
-            db.rollback()
-        return "ok", 200
+
     except Exception as e:
         logger.error(f"Webhook processing error: {e}")
-        # Still return ok to prevent endless retries
+        db.rollback()
         return "ok", 200
     finally:
-        if db:
-            db.close()
+        db.close()
+
 
 @app.route('/payment/<order_id>/status', methods=['GET'])
 def get_payment_status(order_id):

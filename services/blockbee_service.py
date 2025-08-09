@@ -18,8 +18,8 @@ class BlockBeeService:
         self.base_url = BLOCKBEE_BASE_URL
         self.webhook_url = BLOCKBEE_WEBHOOK_URL
     
-    def create_payment_address(self, currency: str, user_id: str, amount_usd: float, invoice_id: str) -> Dict:
-        """Create payment address via BlockBee API forcing a NEW address per invoice_id"""
+    def create_payment_address(self, currency: str, user_id: str, amount_usd: float, order_id: str) -> Dict:
+        """Create payment address via BlockBee API forcing a NEW address per order_id"""
         try:
             # Map our currency codes to BlockBee codes
             currency_mapping = {
@@ -38,7 +38,7 @@ class BlockBeeService:
                 raise ValueError(f"Unsupported currency: {currency}")
             
              # Build a UNIQUE callback per invoice
-            qs = urlencode({"invoice_id": str(invoice_id), "uid": str(user_id), "coin": blockbee_currency})
+            qs = urlencode({"order_id": str(order_id), "uid": str(user_id), "coin": blockbee_currency})
             callback_url = f"{self.webhook_url.rstrip('?')}" + ("&" if "?" in self.webhook_url else "?") + qs
             logger.info(f"Using unique callback URL: {callback_url}")
             
@@ -52,7 +52,7 @@ class BlockBeeService:
                 'callback': callback_url,
                 'apikey': self.api_key,
                 # optional but useful for BlockBee logs, webhooks often echo it back
-                "order_id": str(invoice_id),
+                "order_id": str(order_id),
                 'convert': 1,
                 'pending': 1,  # Notify for pending transactions
                 'post': 1,     # Use POST for webhooks  
@@ -101,7 +101,7 @@ class BlockBeeService:
                         'qr_code': qr_image,
                         'reference': reference_id,
                         "callback_used": callback_url,
-                        "invoice_id": str(invoice_id),
+                        "order_id": str(order_id),
                     }
                 else:
                     logger.error(f"BlockBee API error: {data.get('error', 'Unknown error')}")

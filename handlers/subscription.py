@@ -219,7 +219,7 @@ Select your preferred payment method:
                 currency=payment_method,
                 user_id=str(user.id),
                 amount_usd=SUBSCRIPTION_PRICE_USD,
-                invoice_id=str(subscription.id),    # 👈 drives address uniqueness
+                order_id=str(subscription.id),    # 👈 drives address uniqueness
             )
             
             if not payment_result['success']:
