@@ -221,7 +221,7 @@ Confirm to send this broadcast message?
                 except Exception as e:
                     failed += 1
                     # Optional: log error if you have a logger
-                    # logger.error(f"Broadcast to {chat_id} failed: {e}")
+                    logger.error(f"Broadcast to {chat_id} failed: {e}")
                     continue
 
         # Clear the pending message

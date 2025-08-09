@@ -191,9 +191,9 @@ def main():
             logger.info("Subscription expiry notification scheduler started")
         
         application.post_init = post_init
-        
-        logger.info("Bot started successfully")
+    
         application.run_polling(allowed_updates=Update.ALL_TYPES)
+        logger.info("Bot started successfully")
         
     except Exception as e:
         logger.error(f"Failed to start bot: {e}")
