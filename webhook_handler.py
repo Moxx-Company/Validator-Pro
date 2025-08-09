@@ -26,29 +26,57 @@ def create_webhook_app():
     def health():
         """Additional health check endpoint"""
         return jsonify({'status': 'ok'}), 200
-    
+
     @app.route('/webhook', methods=['POST'])
     @app.route('/webhook/blockbee', methods=['POST', 'GET'])
     def redirect_to_new_system():
-        """Redirect webhooks to new Payment API system"""
         import requests
         try:
-            # Forward webhook to new payment API system
-            webhook_data = request.get_json() or dict(request.args)
-            
-            # Make request to new system
-            response = requests.post(
-                'http://localhost:5000/webhook',
-                json=webhook_data,
-                timeout=30
-            )
-            
-            logger.info(f"Forwarded webhook to new system: {response.status_code}")
-            return response.text, response.status_code
-            
+            # Preserve the original query string (order_id, uid, coin, ...)
+            qs = request.query_string.decode()  # e.g. "order_id=24&uid=1&coin=ltc"
+            fwd_url = f"http://localhost:5000/webhook" + (f"?{qs}" if qs else "")
+
+            if request.method == 'POST':
+                # Forward raw body + headers so signature verification can work internally
+                headers = {"Content-Type": request.headers.get("Content-Type", "application/octet-stream")}
+                sig = request.headers.get("x-ca-signature")
+                if sig:
+                    headers["x-ca-signature"] = sig
+                raw = request.get_data(cache=False)
+                resp = requests.post(fwd_url, data=raw, headers=headers, timeout=30)
+            else:
+                # GET has no body; forward only the query params as JSON (for testing/back-compat)
+                resp = requests.post(fwd_url, json=request.args.to_dict(flat=True), timeout=30)
+
+            logger.info(f"Forwarded webhook to new system: {resp.status_code}")
+            return resp.text, resp.status_code
         except Exception as e:
             logger.error(f"Error forwarding webhook to new system: {e}")
-            return "ok", 200  # Always return ok to prevent retries
+            return "ok", 200
+
+    
+    # @app.route('/webhook', methods=['POST'])
+    # @app.route('/webhook/blockbee', methods=['POST', 'GET'])
+    # def redirect_to_new_system():
+    #     """Redirect webhooks to new Payment API system"""
+    #     import requests
+    #     try:
+    #         # Forward webhook to new payment API system
+    #         webhook_data = request.get_json() or dict(request.args)
+            
+    #         # Make request to new system
+    #         response = requests.post(
+    #             'http://localhost:5000/webhook',
+    #             json=webhook_data,
+    #             timeout=30
+    #         )
+            
+    #         logger.info(f"Forwarded webhook to new system: {response.status_code}")
+    #         return response.text, response.status_code
+            
+    #     except Exception as e:
+    #         logger.error(f"Error forwarding webhook to new system: {e}")
+    #         return "ok", 200  # Always return ok to prevent retries
     
     @app.route('/webhook/blockbee/legacy', methods=['POST', 'GET'])
     @app.route('/webhook/blockbee/legacy/<user_id>/<currency>/<amount_usd>', methods=['POST'])

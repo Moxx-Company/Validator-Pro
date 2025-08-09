@@ -484,34 +484,35 @@ def create_payment():
 @app.route('/webhook', methods=['POST'])
 def webhook():
     logger.info("Webhook received")
-
-    # 2) Read raw body FIRST (for signature). cache=True keeps it available for get_json()
+    # If you want signature verification later, uncomment these 4 lines:
     # raw = request.get_data(cache=True)
-
     # if not verify_blockbee_signature(raw):
     #     logger.error("Invalid BlockBee signature")
     #     return "Invalid signature", 401
 
     logger.info("Verified webhook received")
 
-    # --- parse
+    # Parse args + body
     args = request.args or {}
     body = request.get_json(silent=True) or request.form.to_dict() or {}
     data = {**args, **body}
-    logger.info(f"args={dict(args)} body={body}")
+    logger.info("request.url=%s", request.url)
+    logger.info("args=%s body=%s", dict(args), body)
 
-    raw_order_id = data.get('order_id')
-    address_in   = data.get('address_in')
-    txid         = data.get('txid') or data.get('txid_in')
-    status       = data.get('status')
-    coin_param   = (data.get('coin') or '').upper()
+    raw_order_id = data.get("order_id")  # numeric for Subscription flow; string for PaymentOrder flow
+    address_in   = data.get("address_in")
+    txid         = data.get("txid") or data.get("txid_in")
+    status       = data.get("status")
+    coin_param   = (data.get("coin") or args.get("coin") or "").upper()
+    uid          = data.get("uid") or args.get("uid")  # Telegram chat id (string/integer ok)
 
+    # Safe parsing
     try:
-        confirmations = int(data.get('confirmations', 0) or 0)
+        confirmations = int(data.get("confirmations", 0) or 0)
     except Exception:
         confirmations = 0
     try:
-        amount_coin = float(data.get('value_coin', 0) or 0)
+        amount_coin = float(data.get("value_coin", 0) or 0.0)
     except Exception:
         amount_coin = 0.0
 
@@ -524,31 +525,39 @@ def webhook():
         subscription = None
         payment_order = None
 
-        # Prefer Subscription when order_id is numeric (subscription.id you put in the callback)
+        # 1) Prefer Subscription when order_id is numeric (you put subscription.id in the callback)
         if raw_order_id and str(raw_order_id).isdigit():
             subscription = db.query(Subscription).get(int(raw_order_id))
             if subscription:
                 logger.info(f"Matched Subscription id={subscription.id}")
 
-        # Otherwise try PaymentOrder by string order_id (e.g., 'order_abcd...')
+        # 2) Otherwise try PaymentOrder by string order_id (e.g., 'order_abcd...')
         if not subscription and raw_order_id:
-            payment_order = db.query(PaymentOrder).filter(
-                PaymentOrder.order_id == str(raw_order_id)
-            ).first()
+            payment_order = (
+                db.query(PaymentOrder)
+                .filter(PaymentOrder.order_id == str(raw_order_id))
+                .first()
+            )
             if payment_order:
                 logger.info(f"Matched PaymentOrder order_id={payment_order.order_id}")
 
-        # Fallback by address if still nothing
+        # 3) Fallback by address if nothing matched yet
         if not subscription and not payment_order and address_in:
-            subscription = db.query(Subscription).filter(
-                Subscription.payment_address == address_in
-            ).order_by(Subscription.created_at.desc()).first()
+            subscription = (
+                db.query(Subscription)
+                .filter(Subscription.payment_address == address_in)
+                .order_by(Subscription.created_at.desc())
+                .first()
+            )
             if subscription:
                 logger.info(f"Matched Subscription by address {address_in}")
             else:
-                payment_order = db.query(PaymentOrder).filter(
-                    PaymentOrder.payment_address == address_in
-                ).order_by(PaymentOrder.created_at.desc()).first()
+                payment_order = (
+                    db.query(PaymentOrder)
+                    .filter(PaymentOrder.payment_address == address_in)
+                    .order_by(PaymentOrder.created_at.desc())
+                    .first()
+                )
                 if payment_order:
                     logger.info(f"Matched PaymentOrder by address {address_in}")
 
@@ -557,30 +566,18 @@ def webhook():
             db.commit()
             return "ok", 200
 
-        # Log to PaymentLog only if a PaymentOrder exists
-        if payment_order:
-            db.add(PaymentLog(
-                order_id=payment_order.order_id,
-                txid=txid or "unknown",
-                amount=amount_coin,
-                confirmations=confirmations,
-                status=status or "unknown",
-                webhook_data=str({"args": dict(args), "body": body}),
-            ))
-
+        # ---------- Activate / Confirm ----------
+        # Consider it confirmed if:
         is_confirmed = (
             (status == "confirmed")
             or (payment_order and confirmations >= getattr(payment_order, "confirmations_required", 1))
-            or (not payment_order and confirmations >= 1)  # bare Subscription flow
+            or (not payment_order and confirmations >= 1)  # Subscription-only path
         )
 
         if is_confirmed:
-            if payment_order and payment_order.status != "confirmed":
-                payment_order.status = "confirmed"
-                payment_order.confirmations_received = confirmations
-                payment_order.confirmed_at = datetime.utcnow()
-
+            # 1) Activate Subscription (if we found one)
             if subscription and subscription.status != "active":
+                from config import SUBSCRIPTION_DURATION_DAYS
                 subscription.transaction_hash = txid
                 subscription.status = "active"
                 subscription.activated_at = datetime.utcnow()
@@ -589,36 +586,122 @@ def webhook():
                     subscription.payment_currency_crypto = coin_param
                 if not subscription.payment_amount_crypto and amount_coin:
                     subscription.payment_amount_crypto = amount_coin
+                logger.info(
+                    f"Activated Subscription id={subscription.id} until {subscription.expires_at!s}"
+                )
 
-            # commit first, then notify
+            # 2) Upsert PaymentUser using uid (Telegram chat id)
+            payment_user = None
+            if uid:
+                payment_user = (
+                    db.query(PaymentUser).filter(PaymentUser.user_id == str(uid)).first()
+                )
+                if not payment_user:
+                    payment_user = PaymentUser(user_id=str(uid))
+                    db.add(payment_user)
+                    db.flush()
+                # Optionally mirror subscription expiry to PaymentUser (if you use it elsewhere)
+                if subscription and subscription.expires_at:
+                    payment_user.subscription_expires_at = subscription.expires_at
+                    payment_user.updated_at = datetime.utcnow()
+
+            # 3) Upsert PaymentOrder (always create/update one so you have a normalized record)
+            normalized_order_id = (
+                str(raw_order_id)
+                if raw_order_id
+                else (f"sub_{subscription.id}" if subscription else f"tx_{txid or 'unknown'}")
+            )
+            po = payment_order or (
+                db.query(PaymentOrder).filter(PaymentOrder.order_id == normalized_order_id).first()
+            )
+            if not po:
+                po = PaymentOrder(
+                    order_id=normalized_order_id,
+                    user_id=str(uid) if uid else (payment_order.user_id if payment_order else None),
+                    crypto_type=(
+                        coin_param
+                        or (subscription.payment_currency_crypto if subscription else None)
+                    ),
+                    amount_fiat=(subscription.amount_usd if subscription else 0.0),
+                    amount_crypto=amount_coin or (payment_order.amount_crypto if payment_order else None),
+                    payment_address=address_in or (subscription.payment_address if subscription else None),
+                    status="confirmed",
+                    confirmations_required=getattr(payment_order, "confirmations_required", 1) if payment_order else 1,
+                    confirmations_received=confirmations,
+                    confirmed_at=datetime.utcnow(),
+                )
+                db.add(po)
+                logger.info(f"Created PaymentOrder order_id={po.order_id}")
+            else:
+                # Update existing PaymentOrder
+                if po.status != "confirmed":
+                    po.status = "confirmed"
+                po.confirmations_received = confirmations
+                po.confirmed_at = datetime.utcnow()
+                if amount_coin:
+                    po.amount_crypto = amount_coin
+                if address_in:
+                    po.payment_address = address_in
+                if coin_param:
+                    po.crypto_type = coin_param
+                if uid:
+                    po.user_id = str(uid)
+                logger.info(f"Updated PaymentOrder order_id={po.order_id}")
+
+            # 4) Always write a PaymentLog
+            db.add(PaymentLog(
+                order_id=po.order_id,
+                txid=txid or "unknown",
+                amount=amount_coin,
+                confirmations=confirmations,
+                status=status or "unknown",
+                webhook_data=str({"args": dict(args), "body": body}),
+            ))
+            logger.info(f"Logged PaymentLog for order_id={po.order_id}")
+
+            # Commit DB state BEFORE notifying
             db.commit()
 
-            # Telegram notify (optional)
+            # 5) Telegram notification (MANDATORY when uid is present)
             try:
-                chat_id = args.get("uid") or (payment_order.user_id if payment_order else None)
-                if chat_id and subscription and subscription.expires_at:
-                    send_telegram_notification(
+                chat_id = uid or po.user_id
+                if chat_id:
+                    # choose an expiry to show
+                    expires = subscription.expires_at if subscription else None
+                    if not expires and payment_user and payment_user.subscription_expires_at:
+                        expires = payment_user.subscription_expires_at
+                    if not expires:
+                        expires = datetime.utcnow() + timedelta(days=30)  # fallback display only
+
+                    ok = send_telegram_notification(
                         user_id=str(chat_id),
-                        order_id=str(raw_order_id),
-                        subscription_expires=subscription.expires_at.isoformat()
+                        order_id=str(po.order_id),
+                        subscription_expires=expires.isoformat()
                     )
+                    if ok:
+                        logger.info(f"Telegram notification sent to user {chat_id}")
+                    else:
+                        logger.warning(f"Failed to send Telegram notification to user {chat_id}")
+                else:
+                    logger.warning("No uid/user_id available; cannot send Telegram notification")
             except Exception as notify_err:
                 logger.warning(f"Telegram notify error: {notify_err}")
 
             return "ok", 200
 
-        # not yet confirmed
+        # ---------- Not yet confirmed (store partial confirmations if any) ----------
         if payment_order:
             payment_order.confirmations_received = confirmations
         db.commit()
+        logger.info("Not confirmed yet; state saved")
         return "ok", 200
+
     except Exception as e:
         logger.error(f"Webhook processing error: {e}")
         db.rollback()
         return "ok", 200
     finally:
         db.close()
-
 
 
 @app.route('/payment/<order_id>/status', methods=['GET'])
