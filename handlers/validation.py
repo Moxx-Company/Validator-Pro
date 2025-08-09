@@ -81,9 +81,20 @@ class ValidationHandler:
             elif data == 'recent_jobs':
                 await self.show_recent_jobs(update, context, user, db)
             
-            elif data and data.startswith('upload_'):
-                file_type = data.split('_')[1]
+            # elif data and data.startswith('upload_'):
+            #     file_type = data.split('_')[1]
+            #     await self.prompt_file_upload(update, context, file_type)
+
+            elif data.startswith('upload_'):
+                # Now expecting callbacks like upload_csv_email / upload_excel_phone / upload_txt_email
+                parts = data.split('_')
+                # ['upload', 'csv', 'email']
+                file_type = parts[1] if len(parts) > 1 else 'csv'
+                validation_type = parts[2] if len(parts) > 2 else (context.user_data or {}).get('validation_type', 'email')
+                if context.user_data is not None:
+                    context.user_data['validation_type'] = validation_type
                 await self.prompt_file_upload(update, context, file_type)
+
             
             elif data and data.startswith('download_'):
                 job_id = data.split('_')[1]
@@ -203,7 +214,7 @@ Select your file type and then send the file:"""
     
     async def prompt_file_upload(self, update: Update, context: ContextTypes.DEFAULT_TYPE, file_type: str):
         """Prompt user to upload the chosen file type, tailored to email/phone."""
-        context.user_data['expected_file_type'] = file_type
+        # context.user_data['expected_file_type'] = file_type
 
         # default to email if not set
         validation_type = (context.user_data or {}).get('validation_type', 'email')
@@ -218,7 +229,7 @@ Select your file type and then send the file:"""
 
         if validation_type == 'phone':
             item_name = "phone numbers"
-            column_hint = "• Put numbers in the first column or a 'phone' / 'phone_number' column"
+            column_hint = "• Put numbers in the first column or a 'phone' / 'phone number' column"
         else:
             item_name = "email addresses"
             column_hint = "• Put emails in the first column or an 'email' column"
